@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
+import * as React from "react";
 
 interface ReportPageComponentProps {
   reportData: GeneratePlagiarismReportOutput;
@@ -24,6 +25,8 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
   const originalPercentage = 100 - plagiarismPercentage;
   const isPlagiarismFree = plagiarismPercentage <= PLAGIARISM_FREE_THRESHOLD;
   const { toast } = useToast();
+  const reportCardRef = React.useRef<HTMLDivElement>(null);
+
 
   let statusText = "";
   let statusColorClass = "";
@@ -57,45 +60,65 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
   };
 
   const handlePrint = () => {
-    // Ensure accordions are open for printing
-    const accordionItems = document.querySelectorAll('.print-accordion-open [data-radix-accordion-item]');
-    accordionItems.forEach(item => {
-        item.setAttribute('data-state', 'open');
-    });
-    
-    // Trigger print dialog
-    window.print();
+    const cardElement = reportCardRef.current;
+    if (cardElement) {
+      cardElement.classList.add('printing-now');
+  
+      let fallbackTimeoutId: NodeJS.Timeout | null = null;
+  
+      const cleanup = () => {
+        if (cardElement.classList.contains('printing-now')) {
+          cardElement.classList.remove('printing-now');
+        }
+        window.removeEventListener('afterprint', onAfterPrintHandler);
+        if (fallbackTimeoutId) {
+          clearTimeout(fallbackTimeoutId);
+        }
+      };
+  
+      const onAfterPrintHandler = () => {
+        cleanup();
+      };
+  
+      window.addEventListener('afterprint', onAfterPrintHandler);
+      
+      // Fallback cleanup in case 'afterprint' doesn't fire (e.g., print cancelled, browser quirk)
+      fallbackTimeoutId = setTimeout(cleanup, 1500); // Adjust timeout as needed
+  
+      // Delay to allow CSS changes to apply and DOM to update
+      setTimeout(() => {
+          try {
+              window.print();
+          } catch (error) {
+              console.error("Error calling window.print():", error);
+              // If print fails for some reason, still attempt cleanup
+              cleanup(); 
+          }
+      }, 150); // Slightly increased delay
+    }
   };
 
   const handleShareEmail = () => {
     const subject = encodeURIComponent("Plagiarism Report from Plagiax");
     const body = encodeURIComponent(
-      `I've generated a plagiarism report using Plagiax.\n\nOverall Plagiarism Detected: ${plagiarismPercentage.toFixed(1)}%.\n\nThis report provides an indication of similarity and should be reviewed carefully.\n\nView the report details (if hosted publicly) or see attached for details.\n\nFound Snippets:\n${findings.map(f => `- "${f.snippetFromDocument.substring(0,100)}..." (Similarity: ${f.similarityScore?.toFixed(0) ?? 'N/A'}%, Source: ${f.sourceURL || 'N/A'})`).join('\n')}`
+      `I've generated a plagiarism report using Plagiax.\n\nOverall Plagiarism Detected: ${plagiarismPercentage.toFixed(1)}%.\n\nThis report provides an indication of similarity and should be reviewed carefully.\n\nFound Snippets:\n${findings.map(f => `- "${f.snippetFromDocument.substring(0,100)}..." (Similarity: ${f.similarityScore?.toFixed(0) ?? 'N/A'}%, Source: ${f.sourceURL || 'N/A'})`).join('\n')}`
     );
     const mailtoLink = `mailto:?subject=${subject}&body=${body}`;
     
-    const newWindow = window.open(mailtoLink, '_blank');
+    window.location.href = mailtoLink;
 
-    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-        toast({
-            title: "Share via Email",
-            description: "If your mail client did not open, please copy the report details manually. Your browser might be blocking mailto links or you may not have a default mail client configured.",
-            variant: "default",
-            duration: 9000,
-        });
-    } else {
-        toast({
-            title: "Mail Client Opened",
-            description: "Your mail client should have opened with the report details.",
-            variant: "default",
-        });
-    }
+    toast({
+        title: "Share via Email",
+        description: "Your default email client should open. If not, please check your browser settings or manually copy the report details.",
+        variant: "default",
+        duration: 9000,
+    });
   };
 
 
   return (
     <div className="container mx-auto py-8 px-4 flex flex-col items-center min-h-[calc(100vh-4rem)]">
-      <Card className="w-full max-w-3xl shadow-2xl rounded-xl print:shadow-none">
+      <Card ref={reportCardRef} className="w-full max-w-3xl shadow-2xl rounded-xl print:shadow-none">
         <CardHeader className="text-center pb-4">
            <div className={`mx-auto bg-opacity-10 p-3 rounded-full w-fit mb-4 ${isPlagiarismFree ? 'bg-green-500/10' : plagiarismPercentage > 50 ? 'bg-destructive/10' : 'bg-yellow-500/10'}`}>
             <StatusIcon className={`h-12 w-12 ${statusColorClass}`} />
@@ -142,7 +165,7 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
           />
           
           {findings && findings.length > 0 && (
-            <div className="pt-4 print-accordion-open"> {/* Added class for print handling */}
+            <div className="pt-4"> {/* Removed print-accordion-open class */}
               <Separator className="my-4" />
               <h3 className="text-xl font-semibold mb-3 text-center md:text-left">Detailed Findings</h3>
               <Accordion type="single" collapsible className="w-full">
@@ -228,7 +251,7 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
             margin: 0;
             padding: 0;
           }
-          .container, .container > div { /* Target the main flex container for the card */
+          .container, .container > div { 
             min-height: auto !important;
             padding: 0 !important;
             margin: 0 !important;
@@ -247,35 +270,37 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
            .print\\:border-border, .print-border-border {
             border-color: hsl(var(--border)) !important;
           }
-          .print-accordion-open [data-radix-accordion-item] {
-            page-break-inside: avoid;
+          
+          .card.print\\:shadow-none {
+             border: 1px solid hsl(var(--border)) !important;
           }
-          /* Ensure accordion content is visible and expanded when printing */
-          .print-accordion-open [data-radix-accordion-content][data-state="closed"] {
-            display: block !important; /* Override Radix to show content */
+
+          /* Styles for when .printing-now is active */
+          .printing-now [data-radix-accordion-content] {
+            display: block !important;
             height: auto !important;
             max-height: none !important;
             overflow: visible !important;
             opacity: 1 !important;
-            /* Manually remove animation classes if they interfere */
-            animation: none !important; 
+            animation: none !important;
+            visibility: visible !important;
+            transform: none !important;
+            transition: none !important;
           }
-          .print-accordion-open [data-radix-accordion-trigger][data-state="closed"] > svg {
-            transform: rotate(180deg) !important; /* Show as open */
+
+          .printing-now [data-radix-accordion-trigger] > svg.lucide-chevron-down {
+            transform: rotate(180deg) !important; 
           }
-           .print-accordion-open [data-radix-accordion-trigger] svg.lucide-chevron-down {
-            display: none !important; /* Hide chevron icon during print */
+          
+          .printing-now [data-radix-accordion-item] {
+            page-break-inside: avoid;
           }
+
           .print-visible {
             display: block !important;
           }
           .print-text-black { color: black !important; }
           .print-bg-white { background-color: white !important; }
-
-          /* Specific card styling for print */
-          .card.print\\:shadow-none {
-             border: 1px solid hsl(var(--border)) !important; /* Add a border if shadow is removed */
-          }
         }
       `}</style>
     </div>
