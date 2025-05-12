@@ -3,7 +3,9 @@
 import type { GeneratePlagiarismReportOutput } from "@/ai/flows/generate-plagiarism-report";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 
 interface ReportDisplayProps {
   reportData: GeneratePlagiarismReportOutput | null;
@@ -15,15 +17,24 @@ export function ReportDisplay({ reportData }: ReportDisplayProps) {
   }
 
   const { plagiarismPercentage, report } = reportData;
+  const originalPercentage = 100 - plagiarismPercentage;
 
-  let progressColorClass = "bg-green-500";
-  let percentageBadgeVariant: "default" | "secondary" | "destructive" | "outline" = "default";
+  let similarTextColor = "text-green-600 dark:text-green-400";
+  let messageText = "Well done, your text is unique!";
+  let messageTextColor = "text-green-600 dark:text-green-400";
+
   if (plagiarismPercentage >= 70) {
-    progressColorClass = "bg-red-500";
-    percentageBadgeVariant = "destructive";
+    similarTextColor = "text-destructive"; // Red
+    messageText = "High level of similarity found. Thorough review required.";
+    messageTextColor = "text-destructive";
   } else if (plagiarismPercentage >= 30) {
-    progressColorClass = "bg-yellow-500";
-    percentageBadgeVariant = "secondary"; // Using secondary for yellow-ish
+    similarTextColor = "text-yellow-500 dark:text-yellow-400"; // Yellow/Amber
+    messageText = "Moderate level of similarity found. Review recommended.";
+    messageTextColor = "text-yellow-500 dark:text-yellow-400";
+  } else if (plagiarismPercentage > 0) { // Slight modification for any similarity
+    similarTextColor = "text-green-600 dark:text-green-400"; // Still green for low similarity
+    messageText = "Low level of similarity found.";
+    messageTextColor = "text-green-600 dark:text-green-400";
   }
 
 
@@ -34,25 +45,47 @@ export function ReportDisplay({ reportData }: ReportDisplayProps) {
         <CardDescription>Detailed analysis of the submitted text.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-lg font-medium">Plagiarism Percentage</h3>
-            <Badge variant={percentageBadgeVariant} className="text-lg px-3 py-1">
-              {plagiarismPercentage.toFixed(2)}%
-            </Badge>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 mb-6 text-center md:text-left">
+          <div>
+            <h3 className="text-xs uppercase text-muted-foreground tracking-wider mb-1">SIMILAR</h3>
+            <p className={`text-5xl font-bold ${similarTextColor}`}>
+              {plagiarismPercentage.toFixed(1)}%
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button aria-label="Information about similar percentage" className="ml-2 p-1 inline-block align-middle rounded-full hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      <Info className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" align="center">
+                    <p>Percentage of text found similar to existing sources.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </p>
           </div>
-          <Progress value={plagiarismPercentage} className={`h-3 [&>div]:${progressColorClass}`} />
-           <p className="text-sm text-muted-foreground mt-1">
-            {plagiarismPercentage === 0 ? "No plagiarism detected." :
-             plagiarismPercentage < 30 ? "Low level of similarity found." :
-             plagiarismPercentage < 70 ? "Moderate level of similarity found." :
-             "High level of similarity found. Review recommended."}
+          <div>
+            <h3 className="text-xs uppercase text-muted-foreground tracking-wider mb-1">ORIGINAL</h3>
+            <p className="text-5xl font-bold text-green-600 dark:text-green-400">
+              {originalPercentage.toFixed(1)}%
+            </p>
+          </div>
+        </div>
+
+        <div className="text-center mb-2">
+          <p className={`text-xl font-medium ${messageTextColor}`}>
+            {messageText}
           </p>
         </div>
+        
+        <Progress value={plagiarismPercentage} className="h-2.5" />
+        
+        <Separator className="my-6" />
+
         <div>
           <h3 className="text-lg font-medium mb-2">Detailed Report</h3>
-          <div className="p-4 border rounded-md bg-muted/50 max-h-96 overflow-y-auto">
-            <pre className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{report}</pre>
+          <div className="p-4 border rounded-md bg-muted/50 max-h-96 overflow-y-auto prose dark:prose-invert prose-sm sm:prose-base">
+            <pre className="whitespace-pre-wrap text-foreground leading-relaxed">{report || "No detailed report available."}</pre>
           </div>
         </div>
       </CardContent>

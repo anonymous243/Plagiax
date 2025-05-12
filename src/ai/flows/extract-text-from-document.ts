@@ -34,16 +34,24 @@ const prompt = ai.definePrompt({
   name: 'extractTextFromDocumentPrompt',
   input: {schema: ExtractTextFromDocumentInputSchema},
   output: {schema: ExtractTextFromDocumentOutputSchema},
-  prompt: `You are an expert document processing AI. Your task is to extract all readable text content from the provided document.
-The document is supplied as a data URI.
-Prioritize accuracy and completeness of the textual content. Preserve paragraph structure and line breaks if possible, but focus on extracting the raw text.
+  prompt: `You are an advanced document processing AI. Your primary task is to meticulously extract ALL readable text content from the provided document (DOCX or PDF). The document is supplied as a data URI.
+
+Prioritize absolute completeness and accuracy of the textual content. This includes:
+- Main body text
+- Text within tables (preserving cell content as plain text)
+- Headers and footers
+- Footnotes and endnotes
+- Text boxes and callouts
+- Captions for images or diagrams
+- Text within lists
+
+Preserve paragraph structure and line breaks as much as possible, but ONLY if it does not compromise the completeness of the extracted text. If there's a conflict, extracting ALL text is more important than perfectly preserving structure.
+
+There is NO LIMIT on the length of the text to be extracted. Ensure the entire document's textual content is captured.
 
 Document: {{media url=documentDataUri}}
 
-Return ONLY the extracted text. If the document is empty or contains no readable text, return an empty string for extractedText.`,
-  // It's good practice to configure safety settings, especially if documents could contain varied content.
-  // For text extraction, we might want to be less restrictive, but this depends on application policy.
-  // For now, default safety settings from genkit.ts will apply. Consider adjusting if needed.
+Return ONLY the extracted text. If the document is empty or contains no readable text, return an empty string for extractedText. Do not add any commentary, preamble, or explanation other than the extracted text itself. The output must be solely the content of the 'extractedText' field.`,
 });
 
 const extractTextFromDocumentFlow = ai.defineFlow(
@@ -53,18 +61,11 @@ const extractTextFromDocumentFlow = ai.defineFlow(
     outputSchema: ExtractTextFromDocumentOutputSchema,
   },
   async input => {
-    // Using a model that's good with multimodal inputs / document understanding is key here.
-    // gemini-2.0-flash might be sufficient for simpler documents.
-    // For more complex documents, a model like gemini-1.5-pro might be better if available and configured.
     const {output} = await prompt(input);
     
     if (!output) {
-      // This case should ideally be handled by Genkit if the model fails to produce schema-compliant output.
-      // However, an explicit check is good for robustness.
       throw new Error("Failed to extract text from the document. The model did not return the expected output structure.");
     }
-    // The schema ensures extractedText is a string, so if output is non-null, extractedText should exist.
-    // An empty string is a valid output if the document has no text.
     return output; 
   }
 );
