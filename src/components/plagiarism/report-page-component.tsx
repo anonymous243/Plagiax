@@ -57,29 +57,37 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
   };
 
   const handlePrint = () => {
+    // Ensure accordions are open for printing
+    const accordionItems = document.querySelectorAll('.print-accordion-open [data-radix-accordion-item]');
+    accordionItems.forEach(item => {
+        item.setAttribute('data-state', 'open');
+    });
+    
+    // Trigger print dialog
     window.print();
   };
 
   const handleShareEmail = () => {
     const subject = encodeURIComponent("Plagiarism Report from Plagiax");
     const body = encodeURIComponent(
-      `I've generated a plagiarism report using Plagiax.\n\nOverall Plagiarism Detected: ${plagiarismPercentage.toFixed(1)}%.\n\nThis report provides an indication of similarity and should be reviewed carefully.`
+      `I've generated a plagiarism report using Plagiax.\n\nOverall Plagiarism Detected: ${plagiarismPercentage.toFixed(1)}%.\n\nThis report provides an indication of similarity and should be reviewed carefully.\n\nView the report details (if hosted publicly) or see attached for details.\n\nFound Snippets:\n${findings.map(f => `- "${f.snippetFromDocument.substring(0,100)}..." (Similarity: ${f.similarityScore?.toFixed(0) ?? 'N/A'}%, Source: ${f.sourceURL || 'N/A'})`).join('\n')}`
     );
     const mailtoLink = `mailto:?subject=${subject}&body=${body}`;
     
-    // Attempt to open mailto link
     const newWindow = window.open(mailtoLink, '_blank');
 
-    // Fallback or notification if mailto link fails (e.g., due to pop-up blockers or no mail client)
-    // Note: It's hard to reliably detect if mailto actually opened a client.
-    // This is a common UX challenge with mailto links.
     if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-       // This check is not foolproof
         toast({
             title: "Share via Email",
-            description: "If your mail client did not open, please copy the report details manually. We've prepared the content for you (check your browser's permissions if pop-ups are blocked).",
+            description: "If your mail client did not open, please copy the report details manually. Your browser might be blocking mailto links or you may not have a default mail client configured.",
             variant: "default",
-            duration: 7000,
+            duration: 9000,
+        });
+    } else {
+        toast({
+            title: "Mail Client Opened",
+            description: "Your mail client should have opened with the report details.",
+            variant: "default",
         });
     }
   };
@@ -134,12 +142,12 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
           />
           
           {findings && findings.length > 0 && (
-            <div className="pt-4">
+            <div className="pt-4 print-accordion-open"> {/* Added class for print handling */}
               <Separator className="my-4" />
               <h3 className="text-xl font-semibold mb-3 text-center md:text-left">Detailed Findings</h3>
               <Accordion type="single" collapsible className="w-full">
                 {findings.map((finding, index) => (
-                  <AccordionItem value={`item-${index}`} key={index} className="border-border rounded-lg mb-3 shadow-sm hover:shadow-md transition-shadow bg-card print:shadow-none print:border-muted">
+                  <AccordionItem value={`item-${index}`} key={index} data-radix-accordion-item className="border-border rounded-lg mb-3 shadow-sm hover:shadow-md transition-shadow bg-card print:shadow-none print:border-muted">
                     <AccordionTrigger className="px-4 py-3 hover:no-underline">
                       <div className="flex items-center justify-between w-full">
                         <span className="truncate text-sm font-medium max-w-[calc(100%-8rem)] sm:max-w-[calc(100%-6rem)]">
@@ -215,73 +223,61 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
       <style jsx global>{`
         @media print {
           body {
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            margin: 0;
+            padding: 0;
           }
-          .container > div { /* Target the main flex container for the card */
+          .container, .container > div { /* Target the main flex container for the card */
             min-height: auto !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
           }
-          header, footer, .print\\:hidden {
+          header, footer, .print\\:hidden, .no-print {
             display: none !important;
           }
-          .print\\:shadow-none {
+          .print\\:shadow-none, .print-shadow-none {
             box-shadow: none !important;
           }
-          .print\\:border-muted {
-            border-color: hsl(var(--muted)) !important; /* Ensure Tailwind HSL variables are resolved */
+          .print\\:border-muted, .print-border-muted {
+            border-color: hsl(var(--muted)) !important; 
           }
-           .print\\:border-border {
+           .print\\:border-border, .print-border-border {
             border-color: hsl(var(--border)) !important;
           }
-          .dark .print\\:text-black { /* Example if you need specific dark mode print styles */
-            color: black !important;
+          .print-accordion-open [data-radix-accordion-item] {
+            page-break-inside: avoid;
           }
-          .dark .print\\:bg-white {
-             background-color: white !important;
-          }
-          /* Ensure accordion content is visible when printing */
-          .print\\:accordion-open [data-state="closed"] {
-            display: none !important; /* Hide closed accordions */
-          }
-          .print\\:accordion-open [data-state="open"] > div:last-child { /* AccordionContent's inner div */
-             display: block !important; /* Ensure content is visible */
-             max-height: none !important; /* Remove any height restrictions */
-             overflow: visible !important;
-          }
-           /* Attempt to force accordion open for printing */
-          .print\\:accordion-open [data-radix-accordion-content] {
-            display: block !important;
+          /* Ensure accordion content is visible and expanded when printing */
+          .print-accordion-open [data-radix-accordion-content][data-state="closed"] {
+            display: block !important; /* Override Radix to show content */
             height: auto !important;
-            opacity: 1 !important;
+            max-height: none !important;
             overflow: visible !important;
+            opacity: 1 !important;
+            /* Manually remove animation classes if they interfere */
+            animation: none !important; 
           }
-           .print\\:accordion-open [data-radix-accordion-trigger] svg {
-            display: none !important; /* Hide chevron */
+          .print-accordion-open [data-radix-accordion-trigger][data-state="closed"] > svg {
+            transform: rotate(180deg) !important; /* Show as open */
+          }
+           .print-accordion-open [data-radix-accordion-trigger] svg.lucide-chevron-down {
+            display: none !important; /* Hide chevron icon during print */
+          }
+          .print-visible {
+            display: block !important;
+          }
+          .print-text-black { color: black !important; }
+          .print-bg-white { background-color: white !important; }
+
+          /* Specific card styling for print */
+          .card.print\\:shadow-none {
+             border: 1px solid hsl(var(--border)) !important; /* Add a border if shadow is removed */
           }
         }
       `}</style>
-       {/* Add class to parent of Accordion to force open all items on print */}
-      {typeof window !== 'undefined' && window.matchMedia('print').matches && (
-        <script dangerouslySetInnerHTML={{
-          __html: `
-            document.addEventListener('DOMContentLoaded', function() {
-              if (window.matchMedia('print').matches) {
-                document.querySelectorAll('.print\\:accordion-open [data-radix-accordion-item]').forEach(item => {
-                  item.setAttribute('data-state', 'open');
-                });
-              }
-            });
-            window.addEventListener('beforeprint', () => {
-              document.querySelectorAll('.print\\:accordion-open [data-radix-accordion-item]').forEach(item => {
-                  item.setAttribute('data-state', 'open');
-                });
-            });
-            window.addEventListener('afterprint', () => {
-              // Optionally reset accordion states after printing, though might not be necessary if user navigates away
-            });
-          `
-        }} />
-      )}
     </div>
   );
 }
