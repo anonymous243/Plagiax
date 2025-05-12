@@ -61,7 +61,9 @@
     "@types/react-dom": "^18",
     "autoprefixer": "^10.4.21",
     "genkit-cli": "^1.8.0",
+    "glob": "^11.0.2",
     "postcss": "^8",
+    "rimraf": "^6.0.1",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   },
