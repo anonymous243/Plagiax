@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { Metadata } from 'next';
-import { Building, FileText, Gavel, Info, Lightbulb, ShieldCheck, Target, Users } from "lucide-react";
+import { Building, FileText, Gavel, Info, Lightbulb, ShieldCheck, Target, Users, Languages } from "lucide-react";
 
 export const metadata: Metadata = {
   title: 'About Plagiax',
@@ -16,12 +16,6 @@ export default function AboutPage() {
         <h1 className="text-5xl font-bold tracking-tight text-primary mb-4">
           About Plagiax
         </h1>
-        {/* The introductory paragraph from user text can go here if needed, or it's covered by the sections.
-            The existing page has one. User prompt doesn't have a general one besides "About Plagiax" title.
-            Let's use the existing one or a slightly modified one.
-            The user's overall text starts with "Our Story" after "About Plagiax".
-            So, the existing paragraph: "Discover the story, technology, and commitment behind Plagiax – your trusted partner in ensuring content originality." is good.
-        */}
         <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
           Discover the story, technology, and commitment behind Plagiax – your trusted partner in ensuring content originality.
         </p>
@@ -57,6 +51,15 @@ export default function AboutPage() {
             "Cross-platform compatibility",
           ]}
         />
+         <InfoCard
+          icon={<Languages className="h-8 w-8 text-primary" />}
+          title="Multi-Language Support"
+          items={[
+            "Comprehensive plagiarism checking across 50+ languages",
+            "Intelligent translation and cross-linguistic similarity detection",
+            "Preserves linguistic nuances and context",
+          ]}
+        />
       </div>
 
       <Card className="mb-16 shadow-lg rounded-xl">
@@ -70,7 +73,6 @@ export default function AboutPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-base">
-          {/* Changed this section to directly list commitment points as paragraphs or list items */}
           <p>Protecting intellectual property.</p>
           <p>Supporting academic and professional integrity.</p>
           <p>Continuous technological innovation.</p>
@@ -166,7 +168,7 @@ function InfoCard({ icon, title, description, items }: InfoCardProps) {
           <ul className="space-y-2 text-base">
             {items.map((item, index) => (
               <li key={index} className="flex items-start">
-                <Info className="h-5 w-5 text-primary mr-2 mt-0.5 shrink-0" /> {/* Using Info icon for list items as in existing file */}
+                <Info className="h-5 w-5 text-primary mr-2 mt-0.5 shrink-0" />
                 <span>{item}</span>
               </li>
             ))}

@@ -36,7 +36,12 @@ const prompt = ai.definePrompt({
   name: 'generatePlagiarismReportPrompt',
   input: {schema: GeneratePlagiarismReportInputSchema},
   output: {schema: GeneratePlagiarismReportOutputSchema},
-  prompt: `You are a plagiarism detection expert. You will receive the text content of a document and must determine the percentage of plagiarism detected and generate a detailed report highlighting plagiarized snippets and source URLs.
+  prompt: `You are a plagiarism detection expert with advanced multi-language capabilities. You will receive the text content of a document and must determine the percentage of plagiarism detected.
+Your analysis should include:
+- Comprehensive plagiarism checking across 50+ languages.
+- Intelligent translation and cross-linguistic similarity detection where applicable.
+- Preservation of linguistic nuances and context during analysis.
+- Generate a detailed report highlighting plagiarized snippets and source URLs if available.
 
 Document Text: {{{documentText}}}`,
 });
