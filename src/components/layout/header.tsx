@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { FileSearch, LogOut, Info } from "lucide-react"; 
+import { FileSearch, LogOut, Info, LayoutDashboard } from "lucide-react"; 
 import { useAuth } from "@/context/AuthContext"; 
 import {
   DropdownMenu,
@@ -60,13 +60,14 @@ export function Header() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {/* Future items like Dashboard or Settings can be added here */}
-                {/* <DropdownMenuItem asChild>
+                <DropdownMenuItem asChild>
                   <Link href="/dashboard">
                     <LayoutDashboard className="mr-2 h-4 w-4" />
                     <span>Dashboard</span>
                   </Link>
-                </DropdownMenuItem> */}
+                </DropdownMenuItem>
+                {/* Future items like Settings can be added here */}
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
@@ -89,4 +90,3 @@ export function Header() {
     </header>
   );
 }
-

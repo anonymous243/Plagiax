@@ -15,12 +15,15 @@ import { AlertCircle, FileText, FileUp, CheckCircle, Brain } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useReport } from "@/context/ReportContext";
 import { useAuth } from "@/context/AuthContext";
+import type { ReportHistoryItemSummary } from "@/types/history";
+
 
 const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+const MAX_HISTORY_ITEMS = 50; // Max number of history items to store
 
 export default function HomePage() {
-  const { isAuthenticated, isLoading: authIsLoading } = useAuth();
+  const { isAuthenticated, currentUser, isLoading: authIsLoading } = useAuth();
   const router = useRouter();
   
   const [documentText, setDocumentText] = React.useState<string>("");
@@ -137,11 +140,10 @@ export default function HomePage() {
       setError("Please upload a document or paste text to check for plagiarism.");
       return;
     }
-    if (!documentText.trim() && fileName) { // File was uploaded but text extraction might have failed or is empty
+    if (!documentText.trim() && fileName) { 
       setError("No text content to check. Please ensure the document has extractable text or paste text directly.");
       return;
     }
-
 
     setError(null);
     setIsLoading(true);
@@ -151,6 +153,35 @@ export default function HomePage() {
     try {
       const report = await generatePlagiarismReport({ documentText });
       setReportData(report);
+
+      // Save report to history if user is authenticated
+      if (isAuthenticated && currentUser) {
+        const historyItem: ReportHistoryItemSummary = {
+          id: new Date().toISOString() + Math.random().toString(36).substring(2, 9),
+          timestamp: Date.now(),
+          plagiarismPercentage: report.plagiarismPercentage,
+          documentTitle: fileName || documentText.substring(0, 50) + (documentText.length > 50 ? "..." : ""),
+          fileName: fileName || undefined,
+        };
+
+        try {
+          const historyKey = `plagiax_history_${currentUser.email}`;
+          const existingHistoryString = localStorage.getItem(historyKey);
+          const existingHistory: ReportHistoryItemSummary[] = existingHistoryString ? JSON.parse(existingHistoryString) : [];
+          
+          const updatedHistory = [historyItem, ...existingHistory].slice(0, MAX_HISTORY_ITEMS);
+          
+          localStorage.setItem(historyKey, JSON.stringify(updatedHistory));
+        } catch (e) {
+          console.error("Failed to save report to history:", e);
+          toast({
+            title: "History Warning",
+            description: "Could not save this report to your history. Local storage might be full or disabled.",
+            variant: "default",
+          });
+        }
+      }
+
       router.push("/report");
       toast({
         title: "Analysis Complete!",
@@ -193,10 +224,6 @@ export default function HomePage() {
       </div>
     );
   }
-
-  // If not authenticated and auth loading is finished, useEffect would have redirected.
-  // So, if we reach here and !isAuthenticated, it's an edge case or during the brief moment before redirect.
-  // The main protection is the useEffect.
   
   return (
     <div className="container mx-auto py-8 px-4 flex flex-col items-center">
@@ -264,7 +291,7 @@ export default function HomePage() {
               value={documentText}
               onChange={(e) => {
                 setDocumentText(e.target.value);
-                if (e.target.value && fileName) { // If user starts typing, deselect file
+                if (e.target.value && fileName) { 
                   setFileName(null);
                   if(fileInputRef.current) fileInputRef.current.value = "";
                 }
@@ -307,5 +334,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    

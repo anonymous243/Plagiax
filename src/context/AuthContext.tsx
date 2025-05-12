@@ -55,7 +55,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!isLoading && isAuthenticated && (pathname === '/login' || pathname === '/signup')) {
       router.replace('/');
     }
-     if (!isLoading && !isAuthenticated && pathname !== '/login' && pathname !== '/signup' && pathname !== '/about' && pathname !== '/terms') {
+    // Define public paths that don't require authentication
+    const publicPaths = ['/login', '/signup', '/about', '/terms'];
+    const isPublicPath = publicPaths.includes(pathname);
+
+    if (!isLoading && !isAuthenticated && !isPublicPath) {
       router.replace('/login');
     }
   }, [isLoading, isAuthenticated, pathname, router]);
@@ -90,4 +94,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
