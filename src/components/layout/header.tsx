@@ -1,9 +1,10 @@
+
 "use client"; 
 
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { FileSearch, LogOut } from "lucide-react"; 
+import { FileSearch, LogOut, Info } from "lucide-react"; 
 import { useAuth } from "@/context/AuthContext"; 
 import {
   DropdownMenu,
@@ -29,7 +30,12 @@ export function Header() {
           <FileSearch className="h-7 w-7 text-primary" />
           <span className="text-xl font-bold text-primary">Plagiax</span>
         </Link>
-        <div className="flex items-center gap-3 md:gap-4">
+        <div className="flex items-center gap-2 md:gap-3">
+          <Button variant="ghost" asChild className="text-sm">
+            <Link href="/about">
+              <Info className="mr-1 h-4 w-4" /> About
+            </Link>
+          </Button>
           {authIsLoading ? (
             <div className="flex items-center gap-2">
               <Skeleton className="h-8 w-20 rounded-md" /> 
@@ -70,7 +76,7 @@ export function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <nav className="flex items-center gap-2 md:gap-4">
+            <nav className="flex items-center gap-1 md:gap-2">
               <Button variant="ghost" asChild>
                 <Link href="/login">Sign In</Link>
               </Button>

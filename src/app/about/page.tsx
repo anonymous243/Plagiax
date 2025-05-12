@@ -16,6 +16,12 @@ export default function AboutPage() {
         <h1 className="text-5xl font-bold tracking-tight text-primary mb-4">
           About Plagiax
         </h1>
+        {/* The introductory paragraph from user text can go here if needed, or it's covered by the sections.
+            The existing page has one. User prompt doesn't have a general one besides "About Plagiax" title.
+            Let's use the existing one or a slightly modified one.
+            The user's overall text starts with "Our Story" after "About Plagiax".
+            So, the existing paragraph: "Discover the story, technology, and commitment behind Plagiax – your trusted partner in ensuring content originality." is good.
+        */}
         <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
           Discover the story, technology, and commitment behind Plagiax – your trusted partner in ensuring content originality.
         </p>
@@ -30,7 +36,7 @@ export default function AboutPage() {
         <InfoCard
           icon={<Lightbulb className="h-8 w-8 text-primary" />}
           title="Our Technology"
-          description="Our proprietary algorithm combines advanced machine learning techniques with an extensive global database of academic papers, publications, online content, and historical documents."
+          description="Our proprietary algorithm combines advanced machine learning techniques with an extensive global database of academic papers, publications, online content, and historical documents. This allows us to provide:"
           items={[
             "Comprehensive similarity scanning",
             "Multi-language support",
@@ -60,15 +66,16 @@ export default function AboutPage() {
             <CardTitle className="text-3xl font-semibold">Our Commitment</CardTitle>
           </div>
           <CardDescription className="text-lg">
-            At Plagiax, we are dedicated to upholding the highest standards of integrity and innovation.
+            We are committed to:
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-base">
-          <p><strong>Protecting intellectual property:</strong> We provide robust tools to safeguard original work.</p>
-          <p><strong>Supporting academic and professional integrity:</strong> Our platform promotes honesty and ethical practices.</p>
-          <p><strong>Continuous technological innovation:</strong> We constantly enhance our algorithms and features.</p>
-          <p><strong>User privacy and data security:</strong> We employ state-of-the-art measures to protect your information.</p>
-          <p><strong>Affordable and accessible plagiarism solutions:</strong> We strive to make our tools available to everyone.</p>
+          {/* Changed this section to directly list commitment points as paragraphs or list items */}
+          <p>Protecting intellectual property.</p>
+          <p>Supporting academic and professional integrity.</p>
+          <p>Continuous technological innovation.</p>
+          <p>User privacy and data security.</p>
+          <p>Affordable and accessible plagiarism solutions.</p>
         </CardContent>
       </Card>
       
@@ -98,15 +105,15 @@ export default function AboutPage() {
         </CardHeader>
         <CardContent className="space-y-8">
           <LegalSection title="Terms of Service">
-            By using Plagiax, users agree to our comprehensive Terms of Service, which outline responsible use, data handling, and platform guidelines.
+            <p>By using Plagiax, users agree to our comprehensive Terms of Service, which outline responsible use, data handling, and platform guidelines.</p>
           </LegalSection>
           <Separator />
           <LegalSection title="Privacy Policy">
-            We are committed to protecting user data with state-of-the-art security measures and transparent data practices.
+            <p>We are committed to protecting user data with state-of-the-art security measures and transparent data practices.</p>
           </LegalSection>
           <Separator />
           <LegalSection title="Intellectual Property">
-            All content, algorithms, software, and unique methodologies developed by Plagiax are protected under international intellectual property laws.
+           <p> All content, algorithms, software, and unique methodologies developed by Plagiax are protected under international intellectual property laws.</p>
           </LegalSection>
           <Separator />
           <LegalSection title="Copyright and Trademark">
@@ -115,19 +122,19 @@ export default function AboutPage() {
           </LegalSection>
           <Separator />
           <LegalSection title="Disclaimer">
-            Plagiax provides originality detection tools. While we strive for maximum accuracy, users are responsible for final content verification and academic/professional compliance.
+            <p>Plagiax provides originality detection tools. While we strive for maximum accuracy, users are responsible for final content verification and academic/professional compliance.</p>
           </LegalSection>
           <Separator />
           <LegalSection title="Licensing">
-            Our software is licensed, not sold. Usage is subject to our strict licensing agreements and terms of use.
+            <p>Our software is licensed, not sold. Usage is subject to our strict licensing agreements and terms of use.</p>
           </LegalSection>
           <Separator />
           <LegalSection title="Global Compliance">
-            Plagiax adheres to international data protection regulations, including GDPR, CCPA, and other global privacy standards.
+            <p>Plagiax adheres to international data protection regulations, including GDPR, CCPA, and other global privacy standards.</p>
           </LegalSection>
           <Separator />
           <LegalSection title="Innovation Pledge">
-            We continuously evolve our technology to stay ahead of emerging writing technologies and maintain the highest standards of originality detection.
+            <p>We continuously evolve our technology to stay ahead of emerging writing technologies and maintain the highest standards of originality detection.</p>
           </LegalSection>
         </CardContent>
       </Card>
@@ -159,7 +166,7 @@ function InfoCard({ icon, title, description, items }: InfoCardProps) {
           <ul className="space-y-2 text-base">
             {items.map((item, index) => (
               <li key={index} className="flex items-start">
-                <Info className="h-5 w-5 text-primary mr-2 mt-0.5 shrink-0" />
+                <Info className="h-5 w-5 text-primary mr-2 mt-0.5 shrink-0" /> {/* Using Info icon for list items as in existing file */}
                 <span>{item}</span>
               </li>
             ))}
