@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import Link from "next/link";
+import { useRouter } from "next/navigation"; // Added useRouter
 
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +31,7 @@ const formSchema = z.object({
 export function LoginForm() {
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
+  const router = useRouter(); // Initialized useRouter
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -46,10 +48,10 @@ export function LoginForm() {
     setTimeout(() => {
       setIsLoading(false);
       toast({
-        title: "Login Submitted (Mock)",
-        description: "In a real app, you would be redirected.",
+        title: "Sign In Successful!",
+        description: "You're now being redirected to the plagiarism checker.",
       });
-      // router.push('/'); // Redirect to dashboard or home
+      router.push('/'); // Redirect to plagiarism checker (home page)
     }, 1500);
   }
 
@@ -119,9 +121,7 @@ export function LoginForm() {
             <Link href="/signup">Sign up</Link>
           </Button>
         </p>
-        <Button variant="link" asChild className="p-0 h-auto text-sm text-muted-foreground hover:text-primary">
-            <Link href="#">Forgot password?</Link>
-        </Button>
+        {/* Removed Forgot Password link as per previous request to simplify auth flow */}
       </CardFooter>
     </Card>
   );
