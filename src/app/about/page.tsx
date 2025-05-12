@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { Metadata } from 'next';
-import { Building, FileText, Gavel, Info, Lightbulb, ShieldCheck, Target, Users, Languages } from "lucide-react";
+import { Building, FileText, Gavel, Info, Lightbulb, ShieldCheck, Target, Users, Languages, BrainCircuit } from "lucide-react";
 
 export const metadata: Metadata = {
   title: 'About Plagiax',
@@ -58,6 +58,15 @@ export default function AboutPage() {
             "Comprehensive plagiarism checking across 50+ languages",
             "Intelligent translation and cross-linguistic similarity detection",
             "Preserves linguistic nuances and context",
+          ]}
+        />
+        <InfoCard
+          icon={<BrainCircuit className="h-8 w-8 text-primary" />}
+          title="AI-Powered Content Analysis"
+          items={[
+            "Deep learning algorithms for contextual understanding",
+            "Semantic similarity detection",
+            "Paraphrase and disguised plagiarism identification",
           ]}
         />
       </div>
@@ -194,3 +203,4 @@ function LegalSection({ title, children }: LegalSectionProps) {
     </div>
   );
 }
+
