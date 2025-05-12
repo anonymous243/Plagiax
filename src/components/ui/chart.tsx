@@ -1,9 +1,14 @@
+
 "use client"
 
 import * as React from "react"
 import * as RechartsPrimitive from "recharts"
 
 import { cn } from "@/lib/utils"
+
+// Export Recharts components that might be needed directly
+export { ResponsiveContainer } from "recharts"
+
 
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const
@@ -139,12 +144,19 @@ const ChartTooltipContent = React.forwardRef<
       }
 
       const [item] = payload
+      // Fallback to item.name if dataKey is not useful (e.g. for PieChart)
       const key = `${labelKey || item.dataKey || item.name || "value"}`
       const itemConfig = getPayloadConfigFromPayload(config, item, key)
-      const value =
-        !labelKey && typeof label === "string"
+      
+      let value = !labelKey && typeof label === "string"
           ? config[label as keyof typeof config]?.label || label
           : itemConfig?.label
+
+      // For PieCharts, payload item might have 'name' directly from data
+      if (!value && item.name) {
+        value = config[item.name as keyof typeof config]?.label || item.name;
+      }
+
 
       if (labelFormatter) {
         return (
@@ -188,11 +200,11 @@ const ChartTooltipContent = React.forwardRef<
           {payload.map((item, index) => {
             const key = `${nameKey || item.name || item.dataKey || "value"}`
             const itemConfig = getPayloadConfigFromPayload(config, item, key)
-            const indicatorColor = color || item.payload.fill || item.color
+            const indicatorColor = color || item.payload.fill || item.color || itemConfig?.color
 
             return (
               <div
-                key={item.dataKey}
+                key={item.dataKey || item.name || index} // Use item.name or index as fallback key
                 className={cn(
                   "flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-muted-foreground",
                   indicator === "dot" && "items-center"
@@ -235,10 +247,11 @@ const ChartTooltipContent = React.forwardRef<
                       <div className="grid gap-1.5">
                         {nestLabel ? tooltipLabel : null}
                         <span className="text-muted-foreground">
+                          {/* Use item.name for PieChart or if itemConfig.label is not found */}
                           {itemConfig?.label || item.name}
                         </span>
                       </div>
-                      {item.value && (
+                      {item.value !== undefined && ( // Check for undefined, 0 is a valid value
                         <span className="font-mono font-medium tabular-nums text-foreground">
                           {item.value.toLocaleString()}
                         </span>
@@ -286,12 +299,13 @@ const ChartLegendContent = React.forwardRef<
         )}
       >
         {payload.map((item) => {
-          const key = `${nameKey || item.dataKey || "value"}`
-          const itemConfig = getPayloadConfigFromPayload(config, item, key)
+          const key = `${nameKey || item.dataKey || item.value || "value"}` // item.value is often the name in legend payload
+          const itemConfig = getPayloadConfigFromPayload(config, item, key);
+          const legendLabel = itemConfig?.label || item.value; // Use item.value if no label in config
 
           return (
             <div
-              key={item.value}
+              key={item.value} // item.value is typically the unique key in legend items
               className={cn(
                 "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground"
               )}
@@ -306,7 +320,7 @@ const ChartLegendContent = React.forwardRef<
                   }}
                 />
               )}
-              {itemConfig?.label}
+              {legendLabel}
             </div>
           )
         })}
@@ -331,28 +345,31 @@ function getPayloadConfigFromPayload(
     typeof payload.payload === "object" &&
     payload.payload !== null
       ? payload.payload
-      : undefined
+      : undefined;
 
-  let configLabelKey: string = key
+  let configLabelKey: string = key;
 
-  if (
-    key in payload &&
-    typeof payload[key as keyof typeof payload] === "string"
-  ) {
-    configLabelKey = payload[key as keyof typeof payload] as string
-  } else if (
+  // Direct key in payload (e.g., item.name from PieChart payload)
+  if (key in payload && typeof (payload as any)[key] === 'string') {
+    configLabelKey = (payload as any)[key] as string;
+  } 
+  // Key in payload.payload (e.g., for BarChart data items)
+  else if (
     payloadPayload &&
     key in payloadPayload &&
-    typeof payloadPayload[key as keyof typeof payloadPayload] === "string"
+    typeof (payloadPayload as any)[key] === "string"
   ) {
-    configLabelKey = payloadPayload[
-      key as keyof typeof payloadPayload
-    ] as string
+    configLabelKey = (payloadPayload as any)[key] as string;
   }
+  // If key itself is 'value' and payload has a 'name', use 'name' for config lookup (common in PieChart tooltips)
+  else if (key === 'value' && 'name' in payload && typeof (payload as any).name === 'string') {
+     configLabelKey = (payload as any).name;
+  }
+
 
   return configLabelKey in config
     ? config[configLabelKey]
-    : config[key as keyof typeof config]
+    : config[key as keyof typeof config] // Fallback to the original key if specific label key not found
 }
 
 export {
