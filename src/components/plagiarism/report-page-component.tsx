@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { GeneratePlagiarismReportOutput } from "@/ai/flows/generate-plagiarism-report";
@@ -41,17 +40,15 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
     badgeVariant = "destructive";
   } else if (plagiarismPercentage > PLAGIARISM_FREE_THRESHOLD) {
     statusText = "Plagiarism Detected";
-    statusColorClass = "text-yellow-500 dark:text-yellow-400"; // Using Tailwind's yellow
+    statusColorClass = "text-yellow-500 dark:text-yellow-400"; 
     StatusIcon = AlertTriangle;
-    badgeVariant = "secondary"; // Or a custom yellow variant if defined
+    badgeVariant = "secondary"; 
   } else {
     statusText = "Plagiarism Free";
     statusColorClass = "text-green-600 dark:text-green-400";
     StatusIcon = CheckCircle;
-    // Use default badge variant or a specific "success" variant if available
   }
 
-  // Helper to apply color based on similarity score
   const getSimilarityColor = (score?: number) => {
     if (score === undefined) return "text-muted-foreground";
     if (score > 75) return "text-destructive";
@@ -62,39 +59,41 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
   const handlePrint = () => {
     const cardElement = reportCardRef.current;
     if (cardElement) {
+      document.body.classList.add('printing-body');
       cardElement.classList.add('printing-now');
-  
+      
       let fallbackTimeoutId: NodeJS.Timeout | null = null;
-  
+
       const cleanup = () => {
         if (cardElement.classList.contains('printing-now')) {
-          cardElement.classList.remove('printing-now');
+            cardElement.classList.remove('printing-now');
+        }
+        if (document.body.classList.contains('printing-body')) {
+            document.body.classList.remove('printing-body');
         }
         window.removeEventListener('afterprint', onAfterPrintHandler);
         if (fallbackTimeoutId) {
           clearTimeout(fallbackTimeoutId);
+          fallbackTimeoutId = null;
         }
       };
-  
+
       const onAfterPrintHandler = () => {
         cleanup();
       };
-  
+
       window.addEventListener('afterprint', onAfterPrintHandler);
       
-      // Fallback cleanup in case 'afterprint' doesn't fire (e.g., print cancelled, browser quirk)
-      fallbackTimeoutId = setTimeout(cleanup, 1500); // Adjust timeout as needed
-  
-      // Delay to allow CSS changes to apply and DOM to update
+      fallbackTimeoutId = setTimeout(cleanup, 2000); 
+
       setTimeout(() => {
-          try {
-              window.print();
-          } catch (error) {
-              console.error("Error calling window.print():", error);
-              // If print fails for some reason, still attempt cleanup
-              cleanup(); 
-          }
-      }, 150); // Slightly increased delay
+        try {
+          window.print();
+        } catch (error) {
+          console.error("Error calling window.print():", error);
+          cleanup(); 
+        }
+      }, 300); 
     }
   };
 
@@ -165,7 +164,7 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
           />
           
           {findings && findings.length > 0 && (
-            <div className="pt-4"> {/* Removed print-accordion-open class */}
+            <div className="pt-4">
               <Separator className="my-4" />
               <h3 className="text-xl font-semibold mb-3 text-center md:text-left">Detailed Findings</h3>
               <Accordion type="single" collapsible className="w-full">
@@ -245,12 +244,16 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
 
       <style jsx global>{`
         @media print {
-          body {
+          body.printing-body {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
-            margin: 0;
-            padding: 0;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            background-color: white !important;
+            color: black !important;
           }
+
           .container, .container > div { 
             min-height: auto !important;
             padding: 0 !important;
@@ -258,52 +261,130 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
             width: 100% !important;
             max-width: 100% !important;
           }
-          header, footer, .print\\:hidden, .no-print {
+
+          header, footer, .print\\:hidden, .no-print,
+          .printing-now .print\\:hidden, .printing-now .no-print {
             display: none !important;
           }
-          .print\\:shadow-none, .print-shadow-none {
-            box-shadow: none !important;
-          }
-          .print\\:border-muted, .print-border-muted {
-            border-color: hsl(var(--muted)) !important; 
-          }
-           .print\\:border-border, .print-border-border {
-            border-color: hsl(var(--border)) !important;
-          }
           
-          .card.print\\:shadow-none {
-             border: 1px solid hsl(var(--border)) !important;
+          .printing-now { /* This is the card element */
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 1cm !important; 
+            border: 1px solid #ccc !important;
+            box-shadow: none !important;
+            background-color: white !important;
           }
 
-          /* Styles for when .printing-now is active */
-          .printing-now [data-radix-accordion-content] {
+          .printing-now *, .printing-now p, .printing-now span, .printing-now div, .printing-now h1, .printing-now h2, .printing-now h3, .printing-now h4, .printing-now li {
+            color: black !important;
+            background-color: transparent !important;
+            border-color: #ccc !important; /* Generalize border color */
+          }
+          
+          .printing-now .text-primary, 
+          .printing-now .text-destructive, 
+          .printing-now .text-yellow-500, .printing-now .dark\\:text-yellow-400,
+          .printing-now .text-green-600, .printing-now .dark\\:text-green-400 {
+            color: black !important;
+          }
+
+          .printing-now .text-muted-foreground {
+            color: #555 !important;
+          }
+
+          .printing-now .bg-muted\\/50 {
+            background-color: #f0f0f0 !important;
+          }
+          
+          .printing-now .bg-primary\\/10, 
+          .printing-now .bg-green-500\\/10, 
+          .printing-now .bg-destructive\\/10, 
+          .printing-now .bg-yellow-500\\/10 {
+            background-color: transparent !important;
+          }
+
+          .printing-now .lucide-check-circle, 
+          .printing-now .lucide-x-circle, 
+          .printing-now .lucide-alert-triangle,
+          .printing-now .lucide-info {
+            color: black !important;
+          }
+
+          .printing-now .lucide-link-icon, 
+          .printing-now .lucide-external-link {
+            color: #0000EE !important;
+            fill: #0000EE !important;
+          }
+
+          .printing-now a, .printing-now a:link, .printing-now a:visited {
+            color: #0000EE !important;
+            text-decoration: underline !important;
+          }
+
+          .printing-now .badge {
+            border: 1px solid #999 !important;
+            background-color: #eee !important;
+            color: black !important;
+          }
+          
+          .printing-now .progress {
+            background-color: #e0e0e0 !important;
+            border: 1px solid #ccc !important;
+          }
+          .printing-now .progress > div { /* The indicator */
+            background-color: #777 !important;
+          }
+          .printing-now .separator {
+            background-color: #ccc !important;
+          }
+
+          /* Accordion specific styles for printing */
+          .printing-now [data-radix-accordion-item] {
+            page-break-inside: avoid !important;
+            border: 1px solid #eee !important;
+            margin-bottom: 0.5cm !important;
+            box-shadow: none !important;
+          }
+          .printing-now [data-radix-accordion-trigger] {
+            background-color: #f9f9f9 !important;
+            border-bottom: 1px solid #eee !important;
+          }
+          .printing-now [data-radix-accordion-trigger]:hover {
+             text-decoration: none !important;
+          }
+          .printing-now [data-radix-accordion-trigger] > svg { /* Chevron */
+            color: black !important;
+          }
+
+          .printing-now [data-radix-accordion-content][data-state="closed"],
+          .printing-now .animate-accordion-up { /* Covers Radix direct attr and Tailwind class */
             display: block !important;
             height: auto !important;
             max-height: none !important;
             overflow: visible !important;
             opacity: 1 !important;
-            animation: none !important;
             visibility: visible !important;
+            animation: none !important;
             transform: none !important;
             transition: none !important;
           }
-
-          .printing-now [data-radix-accordion-trigger] > svg.lucide-chevron-down {
-            transform: rotate(180deg) !important; 
-          }
           
-          .printing-now [data-radix-accordion-item] {
-            page-break-inside: avoid;
+          /* Ensure trigger icon reflects open state when content is forced open */
+          .printing-now [data-radix-accordion-trigger][data-state="closed"] svg.lucide-chevron-down {
+            transform: rotate(180deg) !important;
           }
 
-          .print-visible {
-            display: block !important;
+          /* Ensure already open accordions don't animate during print */
+          .printing-now [data-radix-accordion-content][data-state="open"] {
+            animation: none !important;
+            transform: none !important;
+            transition: none !important;
+            /* height: auto !important; Radix might manage this, if it causes issues it can be added */
           }
-          .print-text-black { color: black !important; }
-          .print-bg-white { background-color: white !important; }
         }
       `}</style>
     </div>
   );
 }
-
