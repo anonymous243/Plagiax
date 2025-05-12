@@ -173,104 +173,113 @@ export default function HomePage() {
 
 
   return (
-    <div className="container mx-auto py-8 px-4 flex flex-col items-center min-h-[calc(100vh-4rem)]">
-      <Card className="w-full max-w-2xl shadow-2xl rounded-xl">
-        <CardHeader className="text-center">
-          <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit mb-4">
-            <FileText className="h-10 w-10 text-primary" />
-          </div>
-          <CardTitle className="text-3xl font-bold tracking-tight">Plagiarism Checker</CardTitle>
-          <CardDescription className="text-md text-muted-foreground">
-            Paste your text or upload a document (.docx, .pdf) to check for plagiarism.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid w-full gap-2">
-            <Label htmlFor="document-text" className="text-base font-medium">
-              Enter or upload your text
-            </Label>
-            <Textarea
-              id="document-text"
-              placeholder="Paste your document content here, or upload a file below..."
-              value={documentText}
-              onChange={(e) => {
-                setDocumentText(e.target.value);
-                if (error) setError(null); 
-              }}
-              rows={10}
-              className="text-base border-input focus:ring-primary focus:border-primary rounded-lg shadow-sm"
+    <div className="min-h-screen flex flex-col">
+      {/* Welcome message and signup button */}
+      <div className="flex justify-between items-center p-4 bg-secondary/50 rounded-md">
+        <h1 className="text-2xl font-bold">Welcome to Plagiax, the free plagiarism checker tool!</h1>
+        <Button variant="default" onClick={() => router.push('/signup')}>Sign Up</Button>
+      </div>
+
+      {/* Existing content */}
+      <div className="container mx-auto py-8 px-4 flex flex-col items-center">
+        <Card className="w-full max-w-2xl shadow-2xl rounded-xl">
+          <CardHeader className="text-center">
+            <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit mb-4">
+              <FileText className="h-10 w-10 text-primary" />
+            </div>
+            <CardTitle className="text-3xl font-bold tracking-tight">Plagiarism Checker</CardTitle>
+            <CardDescription className="text-md text-muted-foreground">
+              Paste your text or upload a document (.docx, .pdf) to check for plagiarism.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid w-full gap-2">
+              <Label htmlFor="document-text" className="text-base font-medium">
+                Enter or upload your text
+              </Label>
+              <Textarea
+                id="document-text"
+                placeholder="Paste your document content here, or upload a file below..."
+                value={documentText}
+                onChange={(e) => {
+                  setDocumentText(e.target.value);
+                  if (error) setError(null);
+                }}
+                rows={10}
+                className="text-base border-input focus:ring-primary focus:border-primary rounded-lg shadow-sm"
+                disabled={isLoading}
+              />
+              <p className="text-sm text-muted-foreground text-right pr-1">
+                Word count: {countWords(documentText)}
+              </p>
+            </div>
+
+            <div className="flex items-center my-2">
+              <div className="flex-grow border-t border-border"></div>
+              <span className="flex-shrink mx-4 text-muted-foreground text-xs uppercase">Or</span>
+              <div className="flex-grow border-t border-border"></div>
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
               disabled={isLoading}
+              className="w-full py-3 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300"
+              aria-label="Upload a document file"
+            >
+              <FileUp className="mr-2 h-5 w-5" />
+              Upload Document (.docx, .pdf)
+            </Button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+              accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             />
-            <p className="text-sm text-muted-foreground text-right pr-1">
-              Word count: {countWords(documentText)}
-            </p>
-          </div>
 
-          <div className="flex items-center my-2">
-            <div className="flex-grow border-t border-border"></div>
-            <span className="flex-shrink mx-4 text-muted-foreground text-xs uppercase">Or</span>
-            <div className="flex-grow border-t border-border"></div>
-          </div>
-
-          <Button
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isLoading}
-            className="w-full py-3 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300"
-            aria-label="Upload a document file"
-          >
-            <FileUp className="mr-2 h-5 w-5" />
-            Upload Document (.docx, .pdf)
-          </Button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className="hidden"
-            accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          />
-
-          {error && (
-             <Alert variant={"destructive"} className="rounded-lg">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-        <CardFooter>
-          <Button
-            onClick={handleCheckPlagiarism}
-            disabled={isLoading || !documentText.trim()}
-            className="w-full text-lg py-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
-          >
-            {isLoading && currentTask === "Checking for plagiarism..." ? ( 
-              <>
-                <Spinner className="mr-2 h-5 w-5" /> Checking...
-              </>
-            ) : (
-              <>
-                <FileText className="mr-2 h-5 w-5" /> Check for Plagiarism
-              </>
+            {error && (
+              <Alert variant={"destructive"} className="rounded-lg">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
-          </Button>
-        </CardFooter>
-      </Card>
+          </CardContent>
+          <CardFooter>
+            <Button
+              onClick={handleCheckPlagiarism}
+              disabled={isLoading || !documentText.trim()}
+              className="w-full text-lg py-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
+            >
+              {isLoading && currentTask === "Checking for plagiarism..." ? (
+                <>
+                  <Spinner className="mr-2 h-5 w-5" /> Checking...
+                </>
+              ) : (
+                <>
+                  <FileText className="mr-2 h-5 w-5" /> Check for Plagiarism
+                </>
+              )}
+            </Button>
+          </CardFooter>
+        </Card>
 
-      {isLoading && currentTask && !error && (
-        <div className="w-full max-w-2xl mt-8 flex flex-col items-center space-y-2">
-           <Spinner className="h-8 w-8 text-primary" />
-           <p className="text-muted-foreground">{currentTask}</p> 
-        </div>
-      )}
+        {isLoading && currentTask && !error && (
+          <div className="w-full max-w-2xl mt-8 flex flex-col items-center space-y-2">
+            <Spinner className="h-8 w-8 text-primary" />
+            <p className="text-muted-foreground">{currentTask}</p>
+          </div>
+        )}
 
-       <div className="mt-12 text-center w-full max-w-2xl">
+        <div className="mt-12 text-center w-full max-w-2xl">
           <p className="text-sm text-muted-foreground">
             Plagiax uses advanced AI to compare your text against a vast index of online content.
-            Results are indicative and should be used as a guide. 
+            Results are indicative and should be used as a guide.
             AI-powered text extraction is used for DOCX/PDF files, focusing on main body content.
           </p>
         </div>
+      </div>
     </div>
   );
 }

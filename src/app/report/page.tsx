@@ -7,11 +7,14 @@ import ReportPageComponent from "@/components/plagiarism/report-page-component";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, FileWarning } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/context/AuthContext";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function ReportPage() {
   const { reportData, setReportData } = useReport();
   const router = useRouter();
   const [isClient, setIsClient] = React.useState(false);
+  const { isAuthenticated, isLoading: authIsLoading } = useAuth();
 
   React.useEffect(() => {
     setIsClient(true);
@@ -19,17 +22,36 @@ export default function ReportPage() {
     // return () => {
     //   setReportData(null); 
     // };
-  }, [setReportData]);
+  }, []); // Corrected dependency array
+
+  // Auth redirection logic
+  React.useEffect(() => {
+    if (isClient && !authIsLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isClient, authIsLoading, isAuthenticated, router]);
 
   const handleGoBack = () => {
     setReportData(null); // Clear report data when going back
     router.push("/");
   };
 
-  if (!isClient) {
-    // Render nothing or a placeholder on the server/during first client render before hydration
-    return null; 
+  if (!isClient || authIsLoading || (isClient && !authIsLoading && !isAuthenticated)) {
+    // Show spinner if:
+    // 1. Not client yet (isClient is false)
+    // 2. Auth state is loading (authIsLoading is true)
+    // 3. Auth loaded, but not authenticated (isAuthenticated is false) - redirect will occur
+    return (
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
+        <Spinner className="h-10 w-10 text-primary" />
+      </div>
+    );
   }
+  
+  // If we reach here, then:
+  // isClient = true
+  // authIsLoading = false
+  // isAuthenticated = true
 
   if (!reportData) {
     return (
@@ -57,3 +79,4 @@ export default function ReportPage() {
 
   return <ReportPageComponent reportData={reportData} onBack={handleGoBack} />;
 }
+

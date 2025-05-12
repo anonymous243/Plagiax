@@ -78,9 +78,9 @@ export function SignupForm() {
 
       toast({
         title: "Account Created!",
-        description: "You can now sign in with your new account.",
+        description: "You will now be redirected to the plagiarism checker.",
       });
-      router.push('/login'); 
+      router.push('/report');
     } catch (error) {
       console.error("Signup error:", error);
       toast({
