@@ -28,10 +28,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${geist.variable} antialiased font-sans`}>
         <ThemeProvider
-          attribute="class"
           defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
         >
           <AuthProvider> {/* Wrap with AuthProvider */}
             <ReportProvider>
