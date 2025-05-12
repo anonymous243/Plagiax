@@ -6,11 +6,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Info, FileSearch, CheckCircle, XCircle, AlertTriangle, LinkIcon, ExternalLink } from "lucide-react";
+import { Info, FileSearch, CheckCircle, XCircle, AlertTriangle, LinkIcon, ExternalLink, Printer, Mail } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-
+import { useToast } from "@/hooks/use-toast";
 
 interface ReportPageComponentProps {
   reportData: GeneratePlagiarismReportOutput;
@@ -23,6 +23,7 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
   const { plagiarismPercentage, findings } = reportData;
   const originalPercentage = 100 - plagiarismPercentage;
   const isPlagiarismFree = plagiarismPercentage <= PLAGIARISM_FREE_THRESHOLD;
+  const { toast } = useToast();
 
   let statusText = "";
   let statusColorClass = "";
@@ -55,10 +56,38 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
     return "text-green-600 dark:text-green-400";
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleShareEmail = () => {
+    const subject = encodeURIComponent("Plagiarism Report from Plagiax");
+    const body = encodeURIComponent(
+      `I've generated a plagiarism report using Plagiax.\n\nOverall Plagiarism Detected: ${plagiarismPercentage.toFixed(1)}%.\n\nThis report provides an indication of similarity and should be reviewed carefully.`
+    );
+    const mailtoLink = `mailto:?subject=${subject}&body=${body}`;
+    
+    // Attempt to open mailto link
+    const newWindow = window.open(mailtoLink, '_blank');
+
+    // Fallback or notification if mailto link fails (e.g., due to pop-up blockers or no mail client)
+    // Note: It's hard to reliably detect if mailto actually opened a client.
+    // This is a common UX challenge with mailto links.
+    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+       // This check is not foolproof
+        toast({
+            title: "Share via Email",
+            description: "If your mail client did not open, please copy the report details manually. We've prepared the content for you (check your browser's permissions if pop-ups are blocked).",
+            variant: "default",
+            duration: 7000,
+        });
+    }
+  };
+
 
   return (
     <div className="container mx-auto py-8 px-4 flex flex-col items-center min-h-[calc(100vh-4rem)]">
-      <Card className="w-full max-w-3xl shadow-2xl rounded-xl">
+      <Card className="w-full max-w-3xl shadow-2xl rounded-xl print:shadow-none">
         <CardHeader className="text-center pb-4">
            <div className={`mx-auto bg-opacity-10 p-3 rounded-full w-fit mb-4 ${isPlagiarismFree ? 'bg-green-500/10' : plagiarismPercentage > 50 ? 'bg-destructive/10' : 'bg-yellow-500/10'}`}>
             <StatusIcon className={`h-12 w-12 ${statusColorClass}`} />
@@ -110,17 +139,17 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
               <h3 className="text-xl font-semibold mb-3 text-center md:text-left">Detailed Findings</h3>
               <Accordion type="single" collapsible className="w-full">
                 {findings.map((finding, index) => (
-                  <AccordionItem value={`item-${index}`} key={index} className="border-border rounded-lg mb-3 shadow-sm hover:shadow-md transition-shadow bg-card">
+                  <AccordionItem value={`item-${index}`} key={index} className="border-border rounded-lg mb-3 shadow-sm hover:shadow-md transition-shadow bg-card print:shadow-none print:border-muted">
                     <AccordionTrigger className="px-4 py-3 hover:no-underline">
                       <div className="flex items-center justify-between w-full">
-                        <span className="truncate text-sm font-medium max-w-[calc(100%-6rem)]">
-                          Match #{index + 1}: "{finding.snippetFromDocument.substring(0,50)}..."
+                        <span className="truncate text-sm font-medium max-w-[calc(100%-8rem)] sm:max-w-[calc(100%-6rem)]">
+                          Match #{index + 1}: "{finding.snippetFromDocument.substring(0,40)}..."
                         </span>
                         {finding.similarityScore !== undefined && (
                            <Badge variant={
                             finding.similarityScore > 75 ? "destructive" :
-                            finding.similarityScore > 40 ? "secondary" : // Assuming secondary can be styled as yellow
-                            "default" // Or a specific green/low similarity badge
+                            finding.similarityScore > 40 ? "secondary" : 
+                            "default" 
                           } className={`ml-auto ${getSimilarityColor(finding.similarityScore)}`}>
                             {finding.similarityScore.toFixed(0)}% Similar
                           </Badge>
@@ -145,7 +174,7 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
                             href={finding.sourceURL} 
                             target="_blank" 
                             rel="noopener noreferrer" 
-                            className="text-primary hover:underline truncate flex-grow"
+                            className="text-primary hover:underline truncate flex-grow break-all"
                           >
                             {finding.sourceURL}
                           </a>
@@ -170,12 +199,90 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
 
 
         </CardContent>
-        <CardFooter className="flex flex-col sm:flex-row justify-center gap-4 pt-6 border-t border-border mt-4">
+        <CardFooter className="flex flex-col sm:flex-row justify-center gap-3 p-6 pt-6 border-t border-border mt-4 print:hidden">
           <Button variant="outline" onClick={onBack} className="w-full sm:w-auto text-base py-3 rounded-lg">
-            <FileSearch className="mr-2 h-5 w-5" /> Check Another Document
+            <FileSearch className="mr-2 h-5 w-5" /> Check Another
+          </Button>
+          <Button variant="outline" onClick={handlePrint} className="w-full sm:w-auto text-base py-3 rounded-lg">
+            <Printer className="mr-2 h-5 w-5" /> Print / Save PDF
+          </Button>
+          <Button variant="outline" onClick={handleShareEmail} className="w-full sm:w-auto text-base py-3 rounded-lg">
+            <Mail className="mr-2 h-5 w-5" /> Share via Email
           </Button>
         </CardFooter>
       </Card>
+
+      <style jsx global>{`
+        @media print {
+          body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .container > div { /* Target the main flex container for the card */
+            min-height: auto !important;
+          }
+          header, footer, .print\\:hidden {
+            display: none !important;
+          }
+          .print\\:shadow-none {
+            box-shadow: none !important;
+          }
+          .print\\:border-muted {
+            border-color: hsl(var(--muted)) !important; /* Ensure Tailwind HSL variables are resolved */
+          }
+           .print\\:border-border {
+            border-color: hsl(var(--border)) !important;
+          }
+          .dark .print\\:text-black { /* Example if you need specific dark mode print styles */
+            color: black !important;
+          }
+          .dark .print\\:bg-white {
+             background-color: white !important;
+          }
+          /* Ensure accordion content is visible when printing */
+          .print\\:accordion-open [data-state="closed"] {
+            display: none !important; /* Hide closed accordions */
+          }
+          .print\\:accordion-open [data-state="open"] > div:last-child { /* AccordionContent's inner div */
+             display: block !important; /* Ensure content is visible */
+             max-height: none !important; /* Remove any height restrictions */
+             overflow: visible !important;
+          }
+           /* Attempt to force accordion open for printing */
+          .print\\:accordion-open [data-radix-accordion-content] {
+            display: block !important;
+            height: auto !important;
+            opacity: 1 !important;
+            overflow: visible !important;
+          }
+           .print\\:accordion-open [data-radix-accordion-trigger] svg {
+            display: none !important; /* Hide chevron */
+          }
+        }
+      `}</style>
+       {/* Add class to parent of Accordion to force open all items on print */}
+      {typeof window !== 'undefined' && window.matchMedia('print').matches && (
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            document.addEventListener('DOMContentLoaded', function() {
+              if (window.matchMedia('print').matches) {
+                document.querySelectorAll('.print\\:accordion-open [data-radix-accordion-item]').forEach(item => {
+                  item.setAttribute('data-state', 'open');
+                });
+              }
+            });
+            window.addEventListener('beforeprint', () => {
+              document.querySelectorAll('.print\\:accordion-open [data-radix-accordion-item]').forEach(item => {
+                  item.setAttribute('data-state', 'open');
+                });
+            });
+            window.addEventListener('afterprint', () => {
+              // Optionally reset accordion states after printing, though might not be necessary if user navigates away
+            });
+          `
+        }} />
+      )}
     </div>
   );
 }
+
