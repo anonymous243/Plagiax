@@ -94,7 +94,10 @@ export function LoginForm() {
         // Optionally, could still log them in, but guiding to Google button is better UX
         // login(user.email, user.fullName);
         setIsLoading(false);
-        return; // Or proceed to login(user.email, user.fullName) if direct login is preferred
+        // If user used Google to signup, they should use Google to sign in. 
+        // However, if they somehow try to sign in with email/pass (and we have a dummy pass),
+        // we let them know. We don't log them in here to enforce Google Sign-In.
+        return; 
       }
 
 
@@ -123,7 +126,6 @@ export function LoginForm() {
     setLoginError(null);
     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate Google OAuth flow
 
-    // Simulate getting user info from Google
     const googleEmail = window.prompt("Simulating Google Sign-In...\nPlease enter your Google email:");
     if (!googleEmail) {
       toast({ title: "Google Sign-In Cancelled", variant: "default" });
@@ -131,15 +133,17 @@ export function LoginForm() {
       return;
     }
     
-    let googleFullName = window.prompt("Please enter your full name (as on Google):");
-     if (!googleFullName) {
-      googleFullName = googleEmail.split('@')[0]; // Fallback name
-    }
+    // Full name is not strictly needed for login if user exists, but good for consistency with signup flow if we were to create user.
+    // For login, we'll fetch it from the existing user record.
+    // let googleFullName = window.prompt("Please enter your full name (as on Google):");
+    //  if (!googleFullName) {
+    //   googleFullName = googleEmail.split('@')[0]; // Fallback name
+    // }
 
 
     try {
       const storedUsersString = localStorage.getItem('plagiax_users');
-      let storedUsers = storedUsersString ? JSON.parse(storedUsersString) : [];
+      const storedUsers = storedUsersString ? JSON.parse(storedUsersString) : [];
       const existingUser = storedUsers.find((u: any) => u.email === googleEmail);
 
       if (existingUser) {
@@ -150,21 +154,19 @@ export function LoginForm() {
         });
         login(existingUser.email, existingUser.fullName);
       } else {
-        // User does not exist, create a new account (simulated)
-         const newUser = { email: googleEmail, fullName: googleFullName, password: "google_signed_up_dummy_password" }; // Dummy password for Google signups
-         storedUsers.push(newUser);
-         localStorage.setItem('plagiax_users', JSON.stringify(storedUsers));
-        
+        // User does not exist. Do NOT create an account from login page.
+        const errorMsg = "No account found with this Google email. Please sign up first.";
+        setLoginError(errorMsg);
         toast({
-          title: "Account Created & Signed In!",
-          description: "Welcome to Plagiax! Your account has been created with Google. Redirecting...",
+          title: "Google Sign-In Failed",
+          description: errorMsg,
+          variant: "destructive",
         });
-        login(newUser.email, newUser.fullName);
       }
     } catch (error) {
       console.error("Google Sign-In error:", error);
       const errorMsg = "An unexpected error occurred during Google Sign-In.";
-      setLoginError(errorMsg); // Show error in the general error area
+      setLoginError(errorMsg); 
       toast({
         title: "Google Sign-In Failed",
         description: errorMsg,
