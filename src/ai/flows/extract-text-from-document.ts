@@ -45,9 +45,11 @@ Your extraction should focus on:
 - Captions for images or diagrams if they are within the main body flow.
 - Text within lists found in the main body.
 
-Preserve paragraph structure and line breaks from the main body content as much as possible, but ONLY if it does not compromise the completeness of the extracted main body text. If there's a conflict, extracting ALL main body text is more important than perfectly preserving structure.
+Preserve paragraph structure and line breaks from the main body content as much as possible, but ONLY if it does not compromise the completeness of the extracted main body text. If there's a conflict, extracting ALL main body text is more important than perfectly preserving structure. Ensure no content from the main body is omitted.
 
 There is NO LIMIT on the length of the text to be extracted from the main body. Ensure the entire document's main body textual content is captured.
+
+Execute this extraction with maximum speed and efficiency. The extracted text will be used for further analysis, so a clean, complete, and direct extraction of the main body content is crucial.
 
 Document: {{media url=documentDataUri}}
 
@@ -66,7 +68,7 @@ const extractTextFromDocumentFlow = ai.defineFlow(
     if (!output) {
       throw new Error("Failed to extract text from the document. The model did not return the expected output structure.");
     }
-    return output; 
+    // Ensure extractedText is always a string, even if the model somehow misses it.
+    return { extractedText: output.extractedText || "" }; 
   }
 );
-

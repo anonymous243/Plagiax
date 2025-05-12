@@ -2,26 +2,28 @@
 "use client";
 
 import * as React from "react";
-import { generatePlagiarismReport, type GeneratePlagiarismReportOutput } from "@/ai/flows/generate-plagiarism-report";
+import { useRouter } from "next/navigation";
+import { generatePlagiarismReport } from "@/ai/flows/generate-plagiarism-report";
 import { extractTextFromDocument } from "@/ai/flows/extract-text-from-document";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { ReportDisplay } from "@/components/plagiarism/report-display";
 import { Spinner } from "@/components/ui/spinner";
-import { AlertCircle, FileText, UploadCloud, FileUp } from "lucide-react";
+import { AlertCircle, FileText, FileUp } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useReport } from "@/context/ReportContext";
 
 export default function HomePage() {
   const [documentText, setDocumentText] = React.useState<string>("");
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
-  const [currentTask, setCurrentTask] = React.useState<string>(""); // For more specific loading messages
-  const [reportData, setReportData] = React.useState<GeneratePlagiarismReportOutput | null>(null);
+  const [currentTask, setCurrentTask] = React.useState<string>(""); 
   const [error, setError] = React.useState<string | null>(null);
   const { toast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const router = useRouter();
+  const { setReportData } = useReport();
 
   const handleCheckPlagiarism = async () => {
     if (!documentText.trim()) {
@@ -40,15 +42,17 @@ export default function HomePage() {
 
     try {
       const result = await generatePlagiarismReport({ documentText });
-      setReportData(result);
+      setReportData(result); // Store in context
       toast({
         title: "Report Generated",
-        description: "Plagiarism check completed successfully.",
+        description: "Plagiarism check completed. Redirecting to report page...",
       });
+      router.push('/report'); // Navigate to report page
     } catch (e) {
       console.error(e);
       const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
       setError(`Failed to generate report: ${errorMessage}`);
+      setReportData(null);
       toast({
         title: "Error Generating Report",
         description: `Failed to generate report: ${errorMessage}`,
@@ -75,8 +79,7 @@ export default function HomePage() {
 
       const isDocx = file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || file.name.endsWith(".docx");
       const isPdf = file.type === "application/pdf" || file.name.endsWith(".pdf");
-      const isTxt = file.type === "text/plain" || file.name.endsWith(".txt");
-
+      
       if (isDocx || isPdf) {
         setCurrentTask(`Extracting text from ${file.name}...`);
         toast({
@@ -95,11 +98,11 @@ export default function HomePage() {
                 description: `Successfully extracted text from ${file.name}. Ready for plagiarism check.`,
               });
             } else {
-              setDocumentText(""); // Ensure text is cleared if extraction fails or returns empty
+              setDocumentText(""); 
               setError(`Failed to extract text from ${file.name}. The document might be empty, password-protected, or in an unreadable format. Try pasting the text directly.`);
               toast({
                 title: "Extraction Failed",
-                description: `Could not extract significant text from ${file.name}.`,
+                description: `Could not extract significant text from ${file.name}. The AI model might have encountered an issue processing this specific file.`,
                 variant: "destructive",
                 duration: 8000,
               });
@@ -135,54 +138,12 @@ export default function HomePage() {
             fileInputRef.current.value = ""; 
           }
         };
-        reader.readAsDataURL(file); // Read as Data URL for AI extraction
-      } else if (isTxt) {
-        setCurrentTask(`Loading ${file.name}...`);
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const text = e.target?.result as string;
-            setDocumentText(text);
-            toast({
-              title: "File Loaded",
-              description: `${file.name} has been loaded successfully.`,
-            });
-          } catch (readError) {
-            console.error("Error processing file content:", readError);
-            const errorMessage = readError instanceof Error ? readError.message : "Unknown error processing file.";
-            setError(`Failed to process file: ${errorMessage}`);
-            toast({
-              title: "Error Processing File",
-              description: `Could not process the content of ${file.name}. ${errorMessage}`,
-              variant: "destructive",
-            });
-          } finally {
-            setIsLoading(false);
-            setCurrentTask("");
-            if (fileInputRef.current) {
-              fileInputRef.current.value = ""; 
-            }
-          }
-        };
-        reader.onerror = () => {
-          setError(`Failed to read file: ${reader.error?.message || "Unknown error"}`);
-          toast({
-            title: "Error Reading File",
-            description: `Could not read the file ${file.name}.`,
-            variant: "destructive",
-          });
-          setIsLoading(false);
-          setCurrentTask("");
-          if (fileInputRef.current) {
-            fileInputRef.current.value = ""; 
-          }
-        };
-        reader.readAsText(file);
+        reader.readAsDataURL(file);
       } else {
-         setError(`Unsupported file type: ${file.name}. Please upload a DOCX, PDF, or TXT file.`);
+         setError(`Unsupported file type: ${file.name}. Please upload a DOCX or PDF file.`);
          toast({
             title: "Unsupported File Type",
-            description: "Please upload a DOCX, PDF, or TXT file.",
+            description: "Please upload a DOCX or PDF file.",
             variant: "destructive",
          });
          setIsLoading(false);
@@ -204,7 +165,7 @@ export default function HomePage() {
           </div>
           <CardTitle className="text-3xl font-bold tracking-tight">Plagiarism Checker</CardTitle>
           <CardDescription className="text-md text-muted-foreground">
-            Paste your text or upload a document (.docx, .pdf, .txt) to check for plagiarism.
+            Paste your text or upload a document (.docx, .pdf) to check for plagiarism.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -243,14 +204,14 @@ export default function HomePage() {
             aria-label="Upload a document file"
           >
             <FileUp className="mr-2 h-5 w-5" />
-            Upload Document (.docx, .pdf, .txt)
+            Upload Document (.docx, .pdf)
           </Button>
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleFileChange}
             className="hidden"
-            accept=".docx,.pdf,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+            accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           />
 
           {error && (
@@ -273,30 +234,25 @@ export default function HomePage() {
               </>
             ) : (
               <>
-                <UploadCloud className="mr-2 h-5 w-5" /> Check for Plagiarism
+                <FileText className="mr-2 h-5 w-5" /> Check for Plagiarism
               </>
             )}
           </Button>
         </CardFooter>
       </Card>
 
-      {isLoading && currentTask && !error && !reportData && (
+      {isLoading && currentTask && !error && (
         <div className="w-full max-w-2xl mt-8 flex flex-col items-center space-y-2">
            <Spinner className="h-8 w-8 text-primary" />
            <p className="text-muted-foreground">{currentTask}</p> 
         </div>
       )}
 
-      {reportData && (
-        <div className="w-full max-w-2xl mt-8">
-          <ReportDisplay reportData={reportData} />
-        </div>
-      )}
        <div className="mt-12 text-center w-full max-w-2xl">
           <p className="text-sm text-muted-foreground">
             Plagiax uses advanced AI to compare your text against a vast index of online content.
             Results are indicative and should be used as a guide. 
-            AI-powered text extraction is used for DOCX/PDF files.
+            AI-powered text extraction is used for DOCX/PDF files, focusing on main body content.
           </p>
         </div>
     </div>
