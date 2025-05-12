@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -14,16 +13,33 @@ import { Spinner } from "@/components/ui/spinner";
 import { AlertCircle, FileText, FileUp } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useReport } from "@/context/ReportContext";
+import { useAuth } from "@/context/AuthContext"; // Import useAuth
 
 export default function HomePage() {
+  const { isAuthenticated, isLoading: authIsLoading } = useAuth();
+  const router = useRouter();
+  
   const [documentText, setDocumentText] = React.useState<string>("");
-  const [isLoading, setIsLoading] = React.useState<boolean>(false);
+  const [isLoading, setIsLoading] = React.useState<boolean>(false); // For plagiarism check / file processing
   const [currentTask, setCurrentTask] = React.useState<string>(""); 
   const [error, setError] = React.useState<string | null>(null);
   const { toast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const router = useRouter();
   const { setReportData } = useReport();
+
+  React.useEffect(() => {
+    if (!authIsLoading && !isAuthenticated) {
+      router.replace('/login'); 
+    }
+  }, [isAuthenticated, authIsLoading, router]);
+
+  if (authIsLoading || !isAuthenticated) {
+    return (
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
+        <Spinner className="h-10 w-10 text-primary" />
+      </div>
+    );
+  }
 
   const handleCheckPlagiarism = async () => {
     if (!documentText.trim()) {
@@ -42,12 +58,12 @@ export default function HomePage() {
 
     try {
       const result = await generatePlagiarismReport({ documentText });
-      setReportData(result); // Store in context
+      setReportData(result); 
       toast({
         title: "Report Generated",
         description: "Plagiarism check completed. Redirecting to report page...",
       });
-      router.push('/report'); // Navigate to report page
+      router.push('/report'); 
     } catch (e) {
       console.error(e);
       const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";

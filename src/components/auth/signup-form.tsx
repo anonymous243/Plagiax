@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import Link from "next/link";
+import { useRouter } from "next/navigation"; 
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +22,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { UserPlus } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { useAuth } from "@/context/AuthContext";
+
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
@@ -36,6 +39,8 @@ const formSchema = z.object({
 export function SignupForm() {
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
+  const router = useRouter(); 
+  const { isLoading: authIsLoading } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -50,15 +55,17 @@ export function SignupForm() {
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    console.log("Signup values:", values); // Placeholder for actual signup logic
-    // Simulate API call
+    console.log("Signup values:", values); 
+    // Simulate API call for signup
     setTimeout(() => {
       setIsLoading(false);
+      // Actual signup logic would happen here
+      // For simulation, assume success:
       toast({
-        title: "Account Created (Mock)",
-        description: "Please check your email to verify your account.",
+        title: "Account Created!",
+        description: "Redirecting you to the sign in page.",
       });
-       // router.push('/login'); // Redirect to login page
+       router.push('/login'); // Redirect to login page
     }, 1500);
   }
 
@@ -87,7 +94,7 @@ export function SignupForm() {
                       placeholder="John Doe" 
                       {...field} 
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading} 
+                      disabled={isLoading || authIsLoading} 
                     />
                   </FormControl>
                   <FormMessage />
@@ -106,7 +113,7 @@ export function SignupForm() {
                       placeholder="you@example.com" 
                       {...field} 
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading} 
+                      disabled={isLoading || authIsLoading} 
                     />
                   </FormControl>
                   <FormMessage />
@@ -125,7 +132,7 @@ export function SignupForm() {
                       placeholder="••••••••" 
                       {...field} 
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading} 
+                      disabled={isLoading || authIsLoading} 
                     />
                   </FormControl>
                   <FormMessage />
@@ -144,7 +151,7 @@ export function SignupForm() {
                       placeholder="••••••••" 
                       {...field} 
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading} 
+                      disabled={isLoading || authIsLoading} 
                     />
                   </FormControl>
                   <FormMessage />
@@ -160,7 +167,7 @@ export function SignupForm() {
                     <Checkbox
                       checked={field.value}
                       onCheckedChange={field.onChange}
-                      disabled={isLoading}
+                      disabled={isLoading || authIsLoading}
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
@@ -176,7 +183,7 @@ export function SignupForm() {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full text-lg py-6 rounded-lg" disabled={isLoading}>
+            <Button type="submit" className="w-full text-lg py-6 rounded-lg" disabled={isLoading || authIsLoading}>
               {isLoading ? <Spinner className="mr-2 h-5 w-5" /> : <UserPlus className="mr-2 h-5 w-5" /> }
               {isLoading ? "Creating Account..." : "Create Account"}
             </Button>

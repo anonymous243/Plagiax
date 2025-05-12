@@ -1,12 +1,14 @@
+
 import type { Metadata } from 'next';
-import { Geist } from 'next/font/google'; // Corrected import
+import { Geist } from 'next/font/google'; 
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Header } from '@/components/layout/header';
 import { Toaster } from '@/components/ui/toaster';
 import { ReportProvider } from '@/context/ReportContext';
+import { AuthProvider } from '@/context/AuthContext'; // Add this import
 
-const geist = Geist({ // Corrected usage
+const geist = Geist({ 
   variable: '--font-geist-sans',
   subsets: ['latin'],
 });
@@ -31,13 +33,15 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <ReportProvider>
-            <div className="relative flex min-h-screen flex-col">
-              <Header />
-              <main className="flex-1">{children}</main>
-            </div>
-            <Toaster />
-          </ReportProvider>
+          <AuthProvider> {/* Wrap with AuthProvider */}
+            <ReportProvider>
+              <div className="relative flex min-h-screen flex-col">
+                <Header />
+                <main className="flex-1">{children}</main>
+              </div>
+              <Toaster />
+            </ReportProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

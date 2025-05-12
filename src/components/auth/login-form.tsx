@@ -5,7 +5,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; // Added useRouter
+// useRouter is no longer needed here for redirection, AuthContext handles it.
+// import { useRouter } from "next/navigation"; 
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { useToast } from "@/hooks/use-toast";
 import { LogIn } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-
+import { useAuth } from '@/context/AuthContext'; // Import useAuth
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -31,7 +32,8 @@ const formSchema = z.object({
 export function LoginForm() {
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
-  const router = useRouter(); // Initialized useRouter
+  const { login, isAuthenticated, isLoading: authIsLoading } = useAuth(); // Get login function from AuthContext
+  // const router = useRouter(); // Not needed for redirection, managed by AuthContext
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -43,15 +45,18 @@ export function LoginForm() {
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    console.log("Login values:", values); // Placeholder for actual login logic
-    // Simulate API call
+    console.log("Login values:", values); 
+    
+    // Simulate API call for login
     setTimeout(() => {
       setIsLoading(false);
+      // Actual login logic would happen here (e.g. API call)
+      // For this simulation, we'll assume success:
       toast({
         title: "Sign In Successful!",
         description: "You're now being redirected to the plagiarism checker.",
       });
-      router.push('/'); // Redirect to plagiarism checker (home page)
+      login(); // Call authContext.login which handles state and redirection
     }, 1500);
   }
 
@@ -81,7 +86,7 @@ export function LoginForm() {
                       placeholder="you@example.com" 
                       {...field} 
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading}
+                      disabled={isLoading || authIsLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -100,14 +105,14 @@ export function LoginForm() {
                       placeholder="••••••••" 
                       {...field} 
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading}
+                      disabled={isLoading || authIsLoading}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full text-lg py-6 rounded-lg" disabled={isLoading}>
+            <Button type="submit" className="w-full text-lg py-6 rounded-lg" disabled={isLoading || authIsLoading}>
               {isLoading ? <Spinner className="mr-2 h-5 w-5" /> : <LogIn className="mr-2 h-5 w-5" /> }
               {isLoading ? "Signing In..." : "Sign In"}
             </Button>
@@ -121,7 +126,6 @@ export function LoginForm() {
             <Link href="/signup">Sign up</Link>
           </Button>
         </p>
-        {/* Removed Forgot Password link as per previous request to simplify auth flow */}
       </CardFooter>
     </Card>
   );
