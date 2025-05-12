@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { Metadata } from 'next';
-import { Building, FileText, Gavel, Info, Lightbulb, ShieldCheck, Target, Users, Languages, BrainCircuit } from "lucide-react";
+import { Building, Gavel, Info, Lightbulb, ShieldCheck, Target, Users, Languages, BrainCircuit, ShieldEllipsis } from "lucide-react";
 
 export const metadata: Metadata = {
   title: 'About Plagiax',
@@ -69,6 +69,16 @@ export default function AboutPage() {
             "Paraphrase and disguised plagiarism identification",
           ]}
         />
+        <InfoCard
+          icon={<ShieldEllipsis className="h-8 w-8 text-primary" />}
+          title="Advanced Security Features"
+          items={[
+            "End-to-end encryption for all data transfers.",
+            "Secure, encrypted storage for your documents.",
+            "Full compliance with GDPR and CCPA data privacy regulations.",
+            "Option for anonymous document processing.",
+          ]}
+        />
       </div>
 
       <Card className="mb-16 shadow-lg rounded-xl">
@@ -120,7 +130,7 @@ export default function AboutPage() {
           </LegalSection>
           <Separator />
           <LegalSection title="Privacy Policy">
-            <p>We are committed to protecting user data with state-of-the-art security measures and transparent data practices.</p>
+            <p>We are committed to protecting user data with state-of-the-art security measures and transparent data practices. Our policies align with GDPR, CCPA, and other global privacy standards.</p>
           </LegalSection>
           <Separator />
           <LegalSection title="Intellectual Property">
@@ -140,8 +150,8 @@ export default function AboutPage() {
             <p>Our software is licensed, not sold. Usage is subject to our strict licensing agreements and terms of use.</p>
           </LegalSection>
           <Separator />
-          <LegalSection title="Global Compliance">
-            <p>Plagiax adheres to international data protection regulations, including GDPR, CCPA, and other global privacy standards.</p>
+          <LegalSection title="Data Security & Compliance">
+            <p>Plagiax employs robust security measures, including end-to-end encryption and secure document storage. We adhere to international data protection regulations, including GDPR and CCPA. Anonymous document processing options are available to further protect user privacy.</p>
           </LegalSection>
           <Separator />
           <LegalSection title="Innovation Pledge">
@@ -203,4 +213,3 @@ function LegalSection({ title, children }: LegalSectionProps) {
     </div>
   );
 }
-
