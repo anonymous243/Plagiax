@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -5,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; 
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +25,6 @@ import { UserPlus } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/context/AuthContext";
 
-
 const formSchema = z.object({
   fullName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -39,7 +39,7 @@ const formSchema = z.object({
 export function SignupForm() {
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
-  const router = useRouter(); 
+  const router = useRouter();
   const { isLoading: authIsLoading } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -53,20 +53,44 @@ export function SignupForm() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    console.log("Signup values:", values); 
-    // Simulate API call for signup
-    setTimeout(() => {
-      setIsLoading(false);
-      // Actual signup logic would happen here
-      // For simulation, assume success:
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    try {
+      const storedUsersString = localStorage.getItem('plagiax_users');
+      let storedUsers = storedUsersString ? JSON.parse(storedUsersString) : [];
+
+      if (storedUsers.find((u: any) => u.email === values.email)) {
+        toast({
+          title: "Signup Failed",
+          description: "An account with this email already exists. Please try signing in.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Store new user (INSECURE - for demo purposes only, passwords should be hashed)
+      storedUsers.push({ email: values.email, password: values.password, fullName: values.fullName });
+      localStorage.setItem('plagiax_users', JSON.stringify(storedUsers));
+
       toast({
         title: "Account Created!",
-        description: "Redirecting you to the sign in page.",
+        description: "You can now sign in with your new account.",
       });
-       router.push('/login'); // Redirect to login page
-    }, 1500);
+      router.push('/login'); 
+    } catch (error) {
+      console.error("Signup error:", error);
+      toast({
+        title: "Signup Failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -90,11 +114,11 @@ export function SignupForm() {
                 <FormItem>
                   <FormLabel className="text-base">Full Name</FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="John Doe" 
-                      {...field} 
+                    <Input
+                      placeholder="John Doe"
+                      {...field}
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading || authIsLoading} 
+                      disabled={isLoading || authIsLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -108,12 +132,12 @@ export function SignupForm() {
                 <FormItem>
                   <FormLabel className="text-base">Email</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="email" 
-                      placeholder="you@example.com" 
-                      {...field} 
+                    <Input
+                      type="email"
+                      placeholder="you@example.com"
+                      {...field}
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading || authIsLoading} 
+                      disabled={isLoading || authIsLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -127,12 +151,12 @@ export function SignupForm() {
                 <FormItem>
                   <FormLabel className="text-base">Password</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="password" 
-                      placeholder="••••••••" 
-                      {...field} 
+                    <Input
+                      type="password"
+                      placeholder="••••••••"
+                      {...field}
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading || authIsLoading} 
+                      disabled={isLoading || authIsLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -146,12 +170,12 @@ export function SignupForm() {
                 <FormItem>
                   <FormLabel className="text-base">Confirm Password</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="password" 
-                      placeholder="••••••••" 
-                      {...field} 
+                    <Input
+                      type="password"
+                      placeholder="••••••••"
+                      {...field}
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading || authIsLoading} 
+                      disabled={isLoading || authIsLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -174,7 +198,7 @@ export function SignupForm() {
                     <FormLabel className="text-sm">
                       I agree to the{" "}
                       <Button variant="link" asChild className="p-0 h-auto text-primary text-sm">
-                        <Link href="/terms">terms and conditions</Link>
+                        <Link href="/terms" target="_blank" rel="noopener noreferrer">terms and conditions</Link>
                       </Button>
                       .
                     </FormLabel>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -5,9 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import Link from "next/link";
-// useRouter is no longer needed here for redirection, AuthContext handles it.
-// import { useRouter } from "next/navigation"; 
-
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -20,20 +18,21 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn } from "lucide-react";
+import { LogIn, AlertCircle } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { useAuth } from '@/context/AuthContext'; // Import useAuth
+import { useAuth } from '@/context/AuthContext';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  password: z.string().min(1, { message: "Password is required." }), // Min 1 to ensure it's not empty
 });
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = React.useState(false);
+  const [loginError, setLoginError] = React.useState<string | null>(null);
   const { toast } = useToast();
-  const { login, isAuthenticated, isLoading: authIsLoading } = useAuth(); // Get login function from AuthContext
-  // const router = useRouter(); // Not needed for redirection, managed by AuthContext
+  const { login, isLoading: authIsLoading } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -43,21 +42,62 @@ export function LoginForm() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    console.log("Login values:", values); 
+    setLoginError(null);
     
     // Simulate API call for login
-    setTimeout(() => {
-      setIsLoading(false);
-      // Actual login logic would happen here (e.g. API call)
-      // For this simulation, we'll assume success:
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    try {
+      const storedUsersString = localStorage.getItem('plagiax_users');
+      const storedUsers = storedUsersString ? JSON.parse(storedUsersString) : [];
+      
+      const user = storedUsers.find((u: any) => u.email === values.email);
+
+      if (!user) {
+        const errorMsg = "No account found with this email. Please sign up.";
+        setLoginError(errorMsg);
+        toast({
+          title: "Sign In Failed",
+          description: errorMsg,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      if (user.password !== values.password) {
+        const errorMsg = "Incorrect password. Please try again.";
+        setLoginError(errorMsg);
+        toast({
+          title: "Sign In Failed",
+          description: errorMsg,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // If credentials are correct
       toast({
         title: "Sign In Successful!",
         description: "You're now being redirected to the plagiarism checker.",
       });
       login(); // Call authContext.login which handles state and redirection
-    }, 1500);
+      
+    } catch (error) {
+      console.error("Login error:", error);
+      const errorMsg = "An unexpected error occurred during sign in.";
+      setLoginError(errorMsg);
+      toast({
+        title: "Sign In Failed",
+        description: errorMsg,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -81,10 +121,10 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel className="text-base">Email</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="email" 
-                      placeholder="you@example.com" 
-                      {...field} 
+                    <Input
+                      type="email"
+                      placeholder="you@example.com"
+                      {...field}
                       className="text-base py-5 rounded-lg"
                       disabled={isLoading || authIsLoading}
                     />
@@ -100,10 +140,10 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel className="text-base">Password</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="password" 
-                      placeholder="••••••••" 
-                      {...field} 
+                    <Input
+                      type="password"
+                      placeholder="••••••••"
+                      {...field}
                       className="text-base py-5 rounded-lg"
                       disabled={isLoading || authIsLoading}
                     />
@@ -112,6 +152,13 @@ export function LoginForm() {
                 </FormItem>
               )}
             />
+            {loginError && (
+              <Alert variant="destructive" className="mt-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Sign In Error</AlertTitle>
+                <AlertDescription>{loginError}</AlertDescription>
+              </Alert>
+            )}
             <Button type="submit" className="w-full text-lg py-6 rounded-lg" disabled={isLoading || authIsLoading}>
               {isLoading ? <Spinner className="mr-2 h-5 w-5" /> : <LogIn className="mr-2 h-5 w-5" /> }
               {isLoading ? "Signing In..." : "Sign In"}
