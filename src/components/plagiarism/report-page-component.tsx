@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { GeneratePlagiarismReportOutput } from "@/ai/flows/generate-plagiarism-report";
@@ -5,11 +6,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Info, FileSearch, CheckCircle, XCircle, AlertTriangle, LinkIcon, ExternalLink, Printer, Mail } from "lucide-react";
+import { Info, FileSearch, CheckCircle, XCircle, AlertTriangle, LinkIcon, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { useToast } from "@/hooks/use-toast";
 import * as React from "react";
 
 interface ReportPageComponentProps {
@@ -23,8 +23,6 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
   const { plagiarismPercentage, findings } = reportData;
   const originalPercentage = 100 - plagiarismPercentage;
   const isPlagiarismFree = plagiarismPercentage <= PLAGIARISM_FREE_THRESHOLD;
-  const { toast } = useToast();
-  const reportCardRef = React.useRef<HTMLDivElement>(null);
 
 
   let statusText = "";
@@ -56,68 +54,10 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
     return "text-green-600 dark:text-green-400";
   };
 
-  const handlePrint = () => {
-    const cardElement = reportCardRef.current;
-    if (cardElement) {
-      document.body.classList.add('printing-body');
-      cardElement.classList.add('printing-now');
-      
-      let fallbackTimeoutId: NodeJS.Timeout | null = null;
-
-      const cleanup = () => {
-        if (cardElement.classList.contains('printing-now')) {
-            cardElement.classList.remove('printing-now');
-        }
-        if (document.body.classList.contains('printing-body')) {
-            document.body.classList.remove('printing-body');
-        }
-        window.removeEventListener('afterprint', onAfterPrintHandler);
-        if (fallbackTimeoutId) {
-          clearTimeout(fallbackTimeoutId);
-          fallbackTimeoutId = null;
-        }
-      };
-
-      const onAfterPrintHandler = () => {
-        cleanup();
-      };
-
-      window.addEventListener('afterprint', onAfterPrintHandler);
-      
-      fallbackTimeoutId = setTimeout(cleanup, 2000); 
-
-      setTimeout(() => {
-        try {
-          window.print();
-        } catch (error) {
-          console.error("Error calling window.print():", error);
-          cleanup(); 
-        }
-      }, 300); 
-    }
-  };
-
-  const handleShareEmail = () => {
-    const subject = encodeURIComponent("Plagiarism Report from Plagiax");
-    const body = encodeURIComponent(
-      `I've generated a plagiarism report using Plagiax.\n\nOverall Plagiarism Detected: ${plagiarismPercentage.toFixed(1)}%.\n\nThis report provides an indication of similarity and should be reviewed carefully.\n\nFound Snippets:\n${findings.map(f => `- "${f.snippetFromDocument.substring(0,100)}..." (Similarity: ${f.similarityScore?.toFixed(0) ?? 'N/A'}%, Source: ${f.sourceURL || 'N/A'})`).join('\n')}`
-    );
-    const mailtoLink = `mailto:?subject=${subject}&body=${body}`;
-    
-    window.location.href = mailtoLink;
-
-    toast({
-        title: "Share via Email",
-        description: "Your default email client should open. If not, please check your browser settings or manually copy the report details.",
-        variant: "default",
-        duration: 9000,
-    });
-  };
-
 
   return (
     <div className="container mx-auto py-8 px-4 flex flex-col items-center min-h-[calc(100vh-4rem)]">
-      <Card ref={reportCardRef} className="w-full max-w-3xl shadow-2xl rounded-xl print:shadow-none">
+      <Card className="w-full max-w-3xl shadow-2xl rounded-xl">
         <CardHeader className="text-center pb-4">
            <div className={`mx-auto bg-opacity-10 p-3 rounded-full w-fit mb-4 ${isPlagiarismFree ? 'bg-green-500/10' : plagiarismPercentage > 50 ? 'bg-destructive/10' : 'bg-yellow-500/10'}`}>
             <StatusIcon className={`h-12 w-12 ${statusColorClass}`} />
@@ -169,7 +109,7 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
               <h3 className="text-xl font-semibold mb-3 text-center md:text-left">Detailed Findings</h3>
               <Accordion type="single" collapsible className="w-full">
                 {findings.map((finding, index) => (
-                  <AccordionItem value={`item-${index}`} key={index} data-radix-accordion-item className="border-border rounded-lg mb-3 shadow-sm hover:shadow-md transition-shadow bg-card print:shadow-none print:border-muted">
+                  <AccordionItem value={`item-${index}`} key={index} data-radix-accordion-item className="border-border rounded-lg mb-3 shadow-sm hover:shadow-md transition-shadow bg-card">
                     <AccordionTrigger className="px-4 py-3 hover:no-underline">
                       <div className="flex items-center justify-between w-full">
                         <span className="truncate text-sm font-medium max-w-[calc(100%-8rem)] sm:max-w-[calc(100%-6rem)]">
@@ -229,162 +169,13 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
 
 
         </CardContent>
-        <CardFooter className="flex flex-col sm:flex-row justify-center gap-3 p-6 pt-6 border-t border-border mt-4 print:hidden">
+        <CardFooter className="flex flex-col sm:flex-row justify-center gap-3 p-6 pt-6 border-t border-border mt-4">
           <Button variant="outline" onClick={onBack} className="w-full sm:w-auto text-base py-3 rounded-lg">
             <FileSearch className="mr-2 h-5 w-5" /> Check Another
           </Button>
-          <Button variant="outline" onClick={handlePrint} className="w-full sm:w-auto text-base py-3 rounded-lg">
-            <Printer className="mr-2 h-5 w-5" /> Print / Save PDF
-          </Button>
-          <Button variant="outline" onClick={handleShareEmail} className="w-full sm:w-auto text-base py-3 rounded-lg">
-            <Mail className="mr-2 h-5 w-5" /> Share via Email
-          </Button>
         </CardFooter>
       </Card>
-
-      <style jsx global>{`
-        @media print {
-          body.printing-body {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 100% !important;
-            background-color: white !important;
-            color: black !important;
-          }
-
-          .container, .container > div { 
-            min-height: auto !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            width: 100% !important;
-            max-width: 100% !important;
-          }
-
-          header, footer, .print\\:hidden, .no-print,
-          .printing-now .print\\:hidden, .printing-now .no-print {
-            display: none !important;
-          }
-          
-          .printing-now { /* This is the card element */
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 1cm !important; 
-            border: 1px solid #ccc !important;
-            box-shadow: none !important;
-            background-color: white !important;
-          }
-
-          .printing-now *, .printing-now p, .printing-now span, .printing-now div, .printing-now h1, .printing-now h2, .printing-now h3, .printing-now h4, .printing-now li {
-            color: black !important;
-            background-color: transparent !important;
-            border-color: #ccc !important; /* Generalize border color */
-          }
-          
-          .printing-now .text-primary, 
-          .printing-now .text-destructive, 
-          .printing-now .text-yellow-500, .printing-now .dark\\:text-yellow-400,
-          .printing-now .text-green-600, .printing-now .dark\\:text-green-400 {
-            color: black !important;
-          }
-
-          .printing-now .text-muted-foreground {
-            color: #555 !important;
-          }
-
-          .printing-now .bg-muted\\/50 {
-            background-color: #f0f0f0 !important;
-          }
-          
-          .printing-now .bg-primary\\/10, 
-          .printing-now .bg-green-500\\/10, 
-          .printing-now .bg-destructive\\/10, 
-          .printing-now .bg-yellow-500\\/10 {
-            background-color: transparent !important;
-          }
-
-          .printing-now .lucide-check-circle, 
-          .printing-now .lucide-x-circle, 
-          .printing-now .lucide-alert-triangle,
-          .printing-now .lucide-info {
-            color: black !important;
-          }
-
-          .printing-now .lucide-link-icon, 
-          .printing-now .lucide-external-link {
-            color: #0000EE !important;
-            fill: #0000EE !important;
-          }
-
-          .printing-now a, .printing-now a:link, .printing-now a:visited {
-            color: #0000EE !important;
-            text-decoration: underline !important;
-          }
-
-          .printing-now .badge {
-            border: 1px solid #999 !important;
-            background-color: #eee !important;
-            color: black !important;
-          }
-          
-          .printing-now .progress {
-            background-color: #e0e0e0 !important;
-            border: 1px solid #ccc !important;
-          }
-          .printing-now .progress > div { /* The indicator */
-            background-color: #777 !important;
-          }
-          .printing-now .separator {
-            background-color: #ccc !important;
-          }
-
-          /* Accordion specific styles for printing */
-          .printing-now [data-radix-accordion-item] {
-            page-break-inside: avoid !important;
-            border: 1px solid #eee !important;
-            margin-bottom: 0.5cm !important;
-            box-shadow: none !important;
-          }
-          .printing-now [data-radix-accordion-trigger] {
-            background-color: #f9f9f9 !important;
-            border-bottom: 1px solid #eee !important;
-          }
-          .printing-now [data-radix-accordion-trigger]:hover {
-             text-decoration: none !important;
-          }
-          .printing-now [data-radix-accordion-trigger] > svg { /* Chevron */
-            color: black !important;
-          }
-
-          .printing-now [data-radix-accordion-content][data-state="closed"],
-          .printing-now .animate-accordion-up { /* Covers Radix direct attr and Tailwind class */
-            display: block !important;
-            height: auto !important;
-            max-height: none !important;
-            overflow: visible !important;
-            opacity: 1 !important;
-            visibility: visible !important;
-            animation: none !important;
-            transform: none !important;
-            transition: none !important;
-          }
-          
-          /* Ensure trigger icon reflects open state when content is forced open */
-          .printing-now [data-radix-accordion-trigger][data-state="closed"] svg.lucide-chevron-down {
-            transform: rotate(180deg) !important;
-          }
-
-          /* Ensure already open accordions don't animate during print */
-          .printing-now [data-radix-accordion-content][data-state="open"] {
-            animation: none !important;
-            transform: none !important;
-            transition: none !important;
-            /* height: auto !important; Radix might manage this, if it causes issues it can be added */
-          }
-        }
-      `}</style>
     </div>
   );
 }
+
