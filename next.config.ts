@@ -18,6 +18,11 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb', // Increased for potentially large text documents for plagiarism check
+    },
+  },
 };
 
 export default nextConfig;
