@@ -22,6 +22,7 @@ import { LogIn, AlertCircle } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from '@/context/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { GoogleIcon } from "@/components/icons/google-icon";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -30,6 +31,7 @@ const formSchema = z.object({
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
   const [loginError, setLoginError] = React.useState<string | null>(null);
   const { toast } = useToast();
   const { login, isLoading: authIsLoading } = useAuth();
@@ -46,6 +48,7 @@ export function LoginForm() {
     setIsLoading(true);
     setLoginError(null);
     
+    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     try {
@@ -66,7 +69,10 @@ export function LoginForm() {
         return;
       }
 
-      if (user.password !== values.password) {
+      // For "google_signed_up" users, we don't check password here, 
+      // as they'd typically sign in via Google again.
+      // This check is for regular email/password signups.
+      if (user.password !== values.password && user.password !== "google_signed_up_dummy_password") {
         const errorMsg = "Incorrect password. Please try again.";
         setLoginError(errorMsg);
         toast({
@@ -77,6 +83,20 @@ export function LoginForm() {
         setIsLoading(false);
         return;
       }
+      
+      if (user.password === "google_signed_up_dummy_password") {
+         toast({
+          title: "Sign In Successful!",
+          description: "It looks like you signed up with Google. Please use the 'Sign in with Google' option for the best experience.",
+          variant: "default",
+          duration: 7000,
+        });
+        // Optionally, could still log them in, but guiding to Google button is better UX
+        // login(user.email, user.fullName);
+        setIsLoading(false);
+        return; // Or proceed to login(user.email, user.fullName) if direct login is preferred
+      }
+
 
       toast({
         title: "Sign In Successful!",
@@ -97,6 +117,64 @@ export function LoginForm() {
       setIsLoading(false);
     }
   }
+
+  async function handleGoogleSignIn() {
+    setIsGoogleLoading(true);
+    setLoginError(null);
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate Google OAuth flow
+
+    // Simulate getting user info from Google
+    const googleEmail = window.prompt("Simulating Google Sign-In...\nPlease enter your Google email:");
+    if (!googleEmail) {
+      toast({ title: "Google Sign-In Cancelled", variant: "default" });
+      setIsGoogleLoading(false);
+      return;
+    }
+    
+    let googleFullName = window.prompt("Please enter your full name (as on Google):");
+     if (!googleFullName) {
+      googleFullName = googleEmail.split('@')[0]; // Fallback name
+    }
+
+
+    try {
+      const storedUsersString = localStorage.getItem('plagiax_users');
+      let storedUsers = storedUsersString ? JSON.parse(storedUsersString) : [];
+      const existingUser = storedUsers.find((u: any) => u.email === googleEmail);
+
+      if (existingUser) {
+        // User exists, log them in
+        toast({
+          title: "Signed In with Google!",
+          description: "Welcome back! Redirecting...",
+        });
+        login(existingUser.email, existingUser.fullName);
+      } else {
+        // User does not exist, create a new account (simulated)
+         const newUser = { email: googleEmail, fullName: googleFullName, password: "google_signed_up_dummy_password" }; // Dummy password for Google signups
+         storedUsers.push(newUser);
+         localStorage.setItem('plagiax_users', JSON.stringify(storedUsers));
+        
+        toast({
+          title: "Account Created & Signed In!",
+          description: "Welcome to Plagiax! Your account has been created with Google. Redirecting...",
+        });
+        login(newUser.email, newUser.fullName);
+      }
+    } catch (error) {
+      console.error("Google Sign-In error:", error);
+      const errorMsg = "An unexpected error occurred during Google Sign-In.";
+      setLoginError(errorMsg); // Show error in the general error area
+      toast({
+        title: "Google Sign-In Failed",
+        description: errorMsg,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  }
+
 
   return (
     <Card className="w-full max-w-md shadow-xl rounded-xl">
@@ -124,7 +202,7 @@ export function LoginForm() {
                       placeholder="you@example.com"
                       {...field}
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading || authIsLoading}
+                      disabled={isLoading || authIsLoading || isGoogleLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -143,7 +221,7 @@ export function LoginForm() {
                       placeholder="••••••••"
                       {...field}
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading || authIsLoading}
+                      disabled={isLoading || authIsLoading || isGoogleLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -157,15 +235,29 @@ export function LoginForm() {
                 <AlertDescription>{loginError}</AlertDescription>
               </Alert>
             )}
-            <Button type="submit" className="w-full text-lg py-6 rounded-lg" disabled={isLoading || authIsLoading}>
-              {isLoading || authIsLoading ? <Spinner className="mr-2 h-5 w-5" /> : <LogIn className="mr-2 h-5 w-5" /> }
-              {isLoading || authIsLoading ? "Signing In..." : "Sign In"}
+            <Button type="submit" className="w-full text-lg py-6 rounded-lg" disabled={isLoading || authIsLoading || isGoogleLoading}>
+              {isLoading ? <Spinner className="mr-2 h-5 w-5" /> : <LogIn className="mr-2 h-5 w-5" /> }
+              {isLoading ? "Signing In..." : "Sign In"}
             </Button>
           </form>
         </Form>
       </CardContent>
-      <CardFooter className="flex flex-col items-center gap-2 text-center text-sm">
-        <p className="text-muted-foreground">
+      <CardFooter className="flex flex-col items-center gap-4 text-center text-sm pt-6">
+        <div className="flex items-center w-full">
+          <hr className="flex-grow border-border" />
+          <span className="mx-3 text-xs text-muted-foreground">OR</span>
+          <hr className="flex-grow border-border" />
+        </div>
+        <Button
+          variant="outline"
+          className="w-full text-base py-6 rounded-lg flex items-center justify-center gap-2"
+          onClick={handleGoogleSignIn}
+          disabled={isGoogleLoading || authIsLoading || isLoading}
+        >
+          {isGoogleLoading ? <Spinner className="h-5 w-5" /> : <GoogleIcon className="h-5 w-5" />}
+          Sign in with Google
+        </Button>
+        <p className="text-muted-foreground mt-2">
           Don't have an account?{" "}
           <Button variant="link" asChild className="p-0 h-auto text-primary">
             <Link href="/signup">Sign up</Link>
@@ -175,4 +267,3 @@ export function LoginForm() {
     </Card>
   );
 }
-
