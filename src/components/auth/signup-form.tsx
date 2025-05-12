@@ -23,7 +23,6 @@ import { useToast } from "@/hooks/use-toast";
 import { UserPlus, AlertCircle } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/context/AuthContext";
-import { GoogleIcon } from "@/components/icons/google-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
@@ -39,11 +38,10 @@ const formSchema = z.object({
 
 export function SignupForm() {
   const [isLoading, setIsLoading] = React.useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
   const [signupError, setSignupError] = React.useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
-  const { login, isLoading: authIsLoading } = useAuth(); // Use login from AuthContext
+  const { isLoading: authIsLoading } = useAuth(); 
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -84,7 +82,7 @@ export function SignupForm() {
         title: "Account Created!",
         description: "You will now be redirected to the sign-in page.",
       });
-      router.push('/login'); // Redirect to login page after successful signup
+      router.push('/login'); 
     } catch (error) {
       console.error("Signup error:", error);
       const errorMsg = "An unexpected error occurred. Please try again.";
@@ -99,60 +97,6 @@ export function SignupForm() {
     }
   }
 
-  async function handleGoogleSignUp() {
-    setIsGoogleLoading(true);
-    setSignupError(null);
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate Google OAuth flow
-
-    const googleEmail = window.prompt("Simulating Google Sign-Up...\nPlease enter your Google email to proceed. Pressing Cancel or leaving empty will abort.");
-    if (!googleEmail) {
-      toast({ title: "Google Sign-Up Cancelled", description: "No email was provided or the prompt was cancelled.", variant: "default" });
-      setIsGoogleLoading(false);
-      return;
-    }
-
-    let googleFullName = window.prompt("Please enter your full name (as on Google):");
-     if (!googleFullName) {
-      googleFullName = googleEmail.split('@')[0]; // Fallback name
-    }
-
-    try {
-      const storedUsersString = localStorage.getItem('plagiax_users');
-      let storedUsers = storedUsersString ? JSON.parse(storedUsersString) : [];
-      const existingUser = storedUsers.find((u: any) => u.email === googleEmail);
-
-      if (existingUser) {
-        // User already exists, sign them in
-        toast({
-          title: "Signed In with Google!",
-          description: "An account with this Google email already exists. Signing you in...",
-        });
-        login(existingUser.email, existingUser.fullName); // Use login from AuthContext
-      } else {
-        // New user, create account and sign them in
-        const newUser = { email: googleEmail, fullName: googleFullName, password: "google_signed_up_dummy_password" }; // Dummy password
-        storedUsers.push(newUser);
-        localStorage.setItem('plagiax_users', JSON.stringify(storedUsers));
-        
-        toast({
-          title: "Account Created & Signed In!",
-          description: "Welcome to Plagiax! Your account has been created with Google. Redirecting...",
-        });
-        login(newUser.email, newUser.fullName); // Use login from AuthContext
-      }
-    } catch (error) {
-      console.error("Google Sign-Up error:", error);
-      const errorMsg = "An unexpected error occurred during Google Sign-Up.";
-      setSignupError(errorMsg);
-      toast({
-        title: "Google Sign-Up Failed",
-        description: errorMsg,
-        variant: "destructive",
-      });
-    } finally {
-      setIsGoogleLoading(false);
-    }
-  }
 
   return (
     <Card className="w-full max-w-md shadow-xl rounded-xl">
@@ -179,7 +123,7 @@ export function SignupForm() {
                       placeholder="John Doe"
                       {...field}
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading || authIsLoading || isGoogleLoading}
+                      disabled={isLoading || authIsLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -198,7 +142,7 @@ export function SignupForm() {
                       placeholder="you@example.com"
                       {...field}
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading || authIsLoading || isGoogleLoading}
+                      disabled={isLoading || authIsLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -217,7 +161,7 @@ export function SignupForm() {
                       placeholder="•••••••• (min. 8 characters)"
                       {...field}
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading || authIsLoading || isGoogleLoading}
+                      disabled={isLoading || authIsLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -236,7 +180,7 @@ export function SignupForm() {
                       placeholder="••••••••"
                       {...field}
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading || authIsLoading || isGoogleLoading}
+                      disabled={isLoading || authIsLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -252,7 +196,7 @@ export function SignupForm() {
                     <Checkbox
                       checked={field.value}
                       onCheckedChange={field.onChange}
-                      disabled={isLoading || authIsLoading || isGoogleLoading}
+                      disabled={isLoading || authIsLoading}
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
@@ -275,7 +219,7 @@ export function SignupForm() {
                 <AlertDescription>{signupError}</AlertDescription>
               </Alert>
             )}
-            <Button type="submit" className="w-full text-lg py-6 rounded-lg" disabled={isLoading || authIsLoading || isGoogleLoading}>
+            <Button type="submit" className="w-full text-lg py-6 rounded-lg" disabled={isLoading || authIsLoading}>
               {isLoading ? <Spinner className="mr-2 h-5 w-5" /> : <UserPlus className="mr-2 h-5 w-5" /> }
               {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
@@ -283,20 +227,6 @@ export function SignupForm() {
         </Form>
       </CardContent>
       <CardFooter className="flex flex-col items-center gap-4 text-center text-sm pt-6">
-        <div className="flex items-center w-full">
-          <hr className="flex-grow border-border" />
-          <span className="mx-3 text-xs text-muted-foreground">OR</span>
-          <hr className="flex-grow border-border" />
-        </div>
-        <Button
-          variant="outline"
-          className="w-full text-base py-6 rounded-lg flex items-center justify-center gap-2"
-          onClick={handleGoogleSignUp}
-          disabled={isGoogleLoading || authIsLoading || isLoading}
-        >
-          {isGoogleLoading ? <Spinner className="h-5 w-5" /> : <GoogleIcon className="h-5 w-5" />}
-          Sign up with Google
-        </Button>
         <p className="text-muted-foreground mt-2">
           Already have an account?{" "}
           <Button variant="link" asChild className="p-0 h-auto text-primary">
