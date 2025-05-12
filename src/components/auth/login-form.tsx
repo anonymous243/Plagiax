@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -86,17 +85,14 @@ export function LoginForm() {
       
       if (user.password === "google_signed_up_dummy_password") {
          toast({
-          title: "Sign In Successful!",
+          title: "Sign In Notice",
           description: "It looks like you signed up with Google. Please use the 'Sign in with Google' option for the best experience.",
           variant: "default",
           duration: 7000,
         });
-        // Optionally, could still log them in, but guiding to Google button is better UX
-        // login(user.email, user.fullName);
+        // User used Google to signup, they should use Google to sign in.
+        // We don't log them in here to enforce Google Sign-In.
         setIsLoading(false);
-        // If user used Google to signup, they should use Google to sign in. 
-        // However, if they somehow try to sign in with email/pass (and we have a dummy pass),
-        // we let them know. We don't log them in here to enforce Google Sign-In.
         return; 
       }
 
@@ -126,21 +122,13 @@ export function LoginForm() {
     setLoginError(null);
     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate Google OAuth flow
 
-    const googleEmail = window.prompt("Simulating Google Sign-In...\nPlease enter your Google email:");
+    const googleEmail = window.prompt("Simulating Google Sign-In...\nPlease enter your Google email to proceed. Pressing Cancel or leaving empty will abort.");
     if (!googleEmail) {
-      toast({ title: "Google Sign-In Cancelled", variant: "default" });
+      toast({ title: "Google Sign-In Cancelled", description: "No email was provided or the prompt was cancelled.", variant: "default" });
       setIsGoogleLoading(false);
       return;
     }
     
-    // Full name is not strictly needed for login if user exists, but good for consistency with signup flow if we were to create user.
-    // For login, we'll fetch it from the existing user record.
-    // let googleFullName = window.prompt("Please enter your full name (as on Google):");
-    //  if (!googleFullName) {
-    //   googleFullName = googleEmail.split('@')[0]; // Fallback name
-    // }
-
-
     try {
       const storedUsersString = localStorage.getItem('plagiax_users');
       const storedUsers = storedUsersString ? JSON.parse(storedUsersString) : [];

@@ -1,7 +1,6 @@
-
 "use client";
 
-import * as React from "react";
+import React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -105,9 +104,9 @@ export function SignupForm() {
     setSignupError(null);
     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate Google OAuth flow
 
-    const googleEmail = window.prompt("Simulating Google Sign-Up...\nPlease enter your Google email:");
+    const googleEmail = window.prompt("Simulating Google Sign-Up...\nPlease enter your Google email to proceed. Pressing Cancel or leaving empty will abort.");
     if (!googleEmail) {
-      toast({ title: "Google Sign-Up Cancelled", variant: "default" });
+      toast({ title: "Google Sign-Up Cancelled", description: "No email was provided or the prompt was cancelled.", variant: "default" });
       setIsGoogleLoading(false);
       return;
     }
