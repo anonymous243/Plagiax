@@ -32,7 +32,12 @@ export default function HomePage() {
     }
 
     setIsLoading(true);
-    setError(null);
+    // setError(null); // Error state might contain the DOCX/PDF warning, let's not clear it here if it's a warning.
+                    // Or, ensure this function is only called after user acknowledges the warning or if text is pasted.
+                    // For now, let's clear specific operational errors but retain format warnings if they were set.
+    if (error && !error.startsWith("Important:")) { // Simple check to not clear format warnings
+        setError(null);
+    }
     setReportData(null);
 
     try {
@@ -64,18 +69,41 @@ export default function HomePage() {
     const file = event.target.files?.[0];
     if (file) {
       setIsLoading(true);
-      setError(null);
+      setError(null); // Clear previous operational errors/warnings first
       setReportData(null); // Clear previous report if a new file is uploaded
 
+      const isDocx = file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || file.name.endsWith(".docx");
+      const isPdf = file.type === "application/pdf" || file.name.endsWith(".pdf");
+
+      if (isDocx || isPdf) {
+        const warningMessage = "Important: DOCX/PDF files are allowed, but the current text extraction method is basic (reads as plain text). This can lead to highly inaccurate content for plagiarism checking. Full support for these formats is planned for a future update.";
+        setError(warningMessage); // Display persistent warning
+        toast({
+          title: "File Format Notice",
+          description: "DOCX/PDF uploaded. Text extraction accuracy will be limited with the current method.",
+          variant: "default", 
+          duration: 10000, // Keep toast longer
+        });
+      }
+      
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
           const text = e.target?.result as string;
-          setDocumentText(text);
-          toast({
-            title: "File Loaded",
-            description: `${file.name} has been loaded successfully.`,
-          });
+          setDocumentText(text); // This text will likely be garbled for DOCX/PDF
+          // Do not show a success toast for file load if it's docx/pdf due to inaccuracy
+          if (!isDocx && !isPdf) {
+            toast({
+              title: "File Loaded",
+              description: `${file.name} has been loaded successfully.`,
+            });
+          } else {
+             toast({
+              title: "File Content Loaded (Potentially Inaccurate)",
+              description: `${file.name} content read. Note: accuracy issues with DOCX/PDF.`,
+              duration: 8000
+            });
+          }
         } catch (readError) {
           console.error("Error processing file content:", readError);
           const errorMessage = readError instanceof Error ? readError.message : "Unknown error processing file.";
@@ -88,7 +116,7 @@ export default function HomePage() {
         } finally {
           setIsLoading(false);
           if (fileInputRef.current) {
-            fileInputRef.current.value = ""; // Reset file input so the same file can be re-uploaded
+            fileInputRef.current.value = ""; 
           }
         }
       };
@@ -101,7 +129,7 @@ export default function HomePage() {
         });
         setIsLoading(false);
         if (fileInputRef.current) {
-          fileInputRef.current.value = ""; // Reset file input
+          fileInputRef.current.value = ""; 
         }
       };
       reader.readAsText(file);
@@ -118,7 +146,7 @@ export default function HomePage() {
           </div>
           <CardTitle className="text-3xl font-bold tracking-tight">Plagiarism Checker</CardTitle>
           <CardDescription className="text-md text-muted-foreground">
-            Paste your text or upload a document to check for plagiarism.
+            Paste your text or upload a document (.docx, .pdf) to check for plagiarism.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -130,7 +158,10 @@ export default function HomePage() {
               id="document-text"
               placeholder="Paste your document content here..."
               value={documentText}
-              onChange={(e) => setDocumentText(e.target.value)}
+              onChange={(e) => {
+                setDocumentText(e.target.value);
+                if (error && error.startsWith("Important:")) setError(null); // Clear format warning if user types
+              }}
               rows={10}
               className="text-base border-input focus:ring-primary focus:border-primary rounded-lg shadow-sm"
               disabled={isLoading}
@@ -154,20 +185,20 @@ export default function HomePage() {
             aria-label="Upload a document file"
           >
             <FileUp className="mr-2 h-5 w-5" />
-            Upload Document (.txt, .md)
+            Upload Document (.docx, .pdf)
           </Button>
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleFileChange}
             className="hidden"
-            accept=".txt,.md" 
+            accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           />
 
           {error && (
-             <Alert variant="destructive" className="rounded-lg">
+             <Alert variant={error.startsWith("Important:") ? "default" : "destructive"} className="rounded-lg">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
+              <AlertTitle>{error.startsWith("Important:") ? "Notice" : "Error"}</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
@@ -178,7 +209,7 @@ export default function HomePage() {
             disabled={isLoading || !documentText.trim()}
             className="w-full text-lg py-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
           >
-            {isLoading && !reportData ? ( // Show general loading if not specifically reading file for report
+            {isLoading && !reportData ? ( 
               <>
                 <Spinner className="mr-2 h-5 w-5" /> Checking...
               </>
@@ -205,7 +236,7 @@ export default function HomePage() {
        <div className="mt-12 text-center w-full max-w-2xl">
           <p className="text-sm text-muted-foreground">
             Plagiax uses advanced AI to compare your text against a vast index of online content.
-            Results are indicative and should be used as a guide.
+            Results are indicative and should be used as a guide. For DOCX/PDF, accuracy may be limited.
           </p>
         </div>
     </div>
