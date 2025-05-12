@@ -25,7 +25,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
-  password: z.string().min(1, { message: "Password is required." }), // Min 1 to ensure it's not empty
+  password: z.string().min(1, { message: "Password is required." }),
 });
 
 export function LoginForm() {
@@ -46,7 +46,6 @@ export function LoginForm() {
     setIsLoading(true);
     setLoginError(null);
     
-    // Simulate API call for login
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     try {
@@ -79,12 +78,11 @@ export function LoginForm() {
         return;
       }
 
-      // If credentials are correct
       toast({
         title: "Sign In Successful!",
         description: "You're now being redirected to the plagiarism checker.",
       });
-      login(); // Call authContext.login which handles state and redirection
+      login(user.email, user.fullName); 
       
     } catch (error) {
       console.error("Login error:", error);
@@ -160,8 +158,8 @@ export function LoginForm() {
               </Alert>
             )}
             <Button type="submit" className="w-full text-lg py-6 rounded-lg" disabled={isLoading || authIsLoading}>
-              {isLoading ? <Spinner className="mr-2 h-5 w-5" /> : <LogIn className="mr-2 h-5 w-5" /> }
-              {isLoading ? "Signing In..." : "Sign In"}
+              {isLoading || authIsLoading ? <Spinner className="mr-2 h-5 w-5" /> : <LogIn className="mr-2 h-5 w-5" /> }
+              {isLoading || authIsLoading ? "Signing In..." : "Sign In"}
             </Button>
           </form>
         </Form>
@@ -177,3 +175,4 @@ export function LoginForm() {
     </Card>
   );
 }
+

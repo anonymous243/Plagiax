@@ -19,9 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 
 export function Header() {
-  const { isAuthenticated, logout, isLoading: authIsLoading } = useAuth();
-
-  const userName = "User"; // Placeholder, replace with actual user data if available
+  const { isAuthenticated, logout, isLoading: authIsLoading, currentUser } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -41,24 +39,24 @@ export function Header() {
               <Skeleton className="h-8 w-20 rounded-md" /> 
               <Skeleton className="h-9 w-9 rounded-full" />
             </div>
-          ) : isAuthenticated ? (
+          ) : isAuthenticated && currentUser ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
                   <Avatar className="h-9 w-9">
                     {/* data-ai-hint for AvatarImage can be added if an actual image source is used */}
-                    {/* <AvatarImage src="https://picsum.photos/40/40" alt={userName} data-ai-hint="profile avatar" /> */}
-                    <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
+                    {/* <AvatarImage src="https://picsum.photos/40/40" alt={currentUser.fullName} data-ai-hint="profile avatar" /> */}
+                    <AvatarFallback>{currentUser.fullName?.charAt(0)?.toUpperCase() || 'U'}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{userName}</p>
-                    {/* <p className="text-xs leading-none text-muted-foreground">
-                      user@example.com // Placeholder for email
-                    </p> */}
+                    <p className="text-sm font-medium leading-none">{currentUser.fullName}</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {currentUser.email}
+                    </p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -91,3 +89,4 @@ export function Header() {
     </header>
   );
 }
+
