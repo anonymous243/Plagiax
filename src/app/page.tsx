@@ -235,9 +235,7 @@ export default function HomePage() {
           <CardTitle className="text-4xl font-bold tracking-tight text-primary">
             Plagiarism Checker
           </CardTitle>
-          <CardDescription className="text-lg text-muted-foreground mt-2 px-4">
-            Leveraging state-of-the-art artificial intelligence, Plagiax conducts comprehensive textual analysis by cross-referencing submitted documents against an expansive global content database. Our intelligent system provides nuanced originality insights, with intelligent parsing capabilities that extract and analyze core content from diverse file formats including DOCX and PDF. Users should interpret results as a sophisticated guidance tool, recognizing the contextual nature of content similarity.
-          </CardDescription>
+          {/* CardDescription removed from here */}
         </CardHeader>
         <CardContent className="space-y-6 p-6">
           {error && (
@@ -331,6 +329,13 @@ export default function HomePage() {
           </Button>
         </CardFooter>
       </Card>
+
+      <div className="w-full max-w-2xl mt-8 p-6 bg-card text-card-foreground shadow-lg rounded-xl border border-border">
+        <p className="text-base text-muted-foreground">
+          Leveraging state-of-the-art artificial intelligence, Plagiax conducts comprehensive textual analysis by cross-referencing submitted documents against an expansive global content database. Our intelligent system provides nuanced originality insights, with intelligent parsing capabilities that extract and analyze core content from diverse file formats including DOCX and PDF. Users should interpret results as a sophisticated guidance tool, recognizing the contextual nature of content similarity.
+        </p>
+      </div>
     </div>
   );
 }
+
