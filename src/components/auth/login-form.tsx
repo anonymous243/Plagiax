@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -99,7 +100,7 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-md shadow-xl rounded-xl">
+    <Card className="w-full max-w-md shadow-xl rounded-xl bg-card/70 backdrop-blur-md border border-border/30">
       <CardHeader className="text-center">
         <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit mb-4">
             <LogIn className="h-8 w-8 text-primary" />

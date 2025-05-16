@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from "react";
@@ -99,7 +100,7 @@ export function SignupForm() {
 
 
   return (
-    <Card className="w-full max-w-md shadow-xl rounded-xl">
+    <Card className="w-full max-w-md shadow-xl rounded-xl bg-card/70 backdrop-blur-md border border-border/30">
       <CardHeader className="text-center">
         <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit mb-4">
             <UserPlus className="h-8 w-8 text-primary" />
@@ -191,7 +192,7 @@ export function SignupForm() {
               control={form.control}
               name="terms"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm bg-background">
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm bg-background/80 backdrop-blur-sm">
                   <FormControl>
                     <Checkbox
                       checked={field.value}
