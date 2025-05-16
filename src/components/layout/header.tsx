@@ -91,7 +91,7 @@ export function Header() {
       <div className="container flex h-16 items-center justify-between">
         <Link href="/" className="flex items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
           <GraduationCap className="h-7 w-7 text-primary" />
-          <span className="text-xl font-bold text-foreground">Checker</span>
+          <span className="text-xl font-bold text-foreground">Plagiax</span>
         </Link>
         
         {/* Desktop Menu */}
