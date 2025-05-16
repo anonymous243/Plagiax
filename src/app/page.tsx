@@ -257,7 +257,7 @@ export default function HomePage() {
   }
   
   return (
-    <div className="container mx-auto py-8 px-4 md:py-16">
+    <div className="container mx-auto py-8 px-4 md:py-12"> {/* Reduced top/bottom padding slightly */}
       <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
         {/* Left Column */}
         <div className="space-y-6 relative">
@@ -268,22 +268,14 @@ export default function HomePage() {
             Plagiarism Checker
           </h1>
           <p className="text-lg text-muted-foreground">
-            Our plagiarism checker detects similarities in your text against a vast online database.
+             Leveraging state-of-the-art artificial intelligence, Plagiax conducts comprehensive textual analysis by cross-referencing submitted documents against an expansive global content database. Our intelligent system provides nuanced originality insights, with intelligent parsing capabilities that extract and analyze core content from diverse file formats including DOCX and PDF. Users should interpret results as a sophisticated guidance tool, recognizing the contextual nature of content similarity.
           </p>
           {/* Placeholder for swirl - using a Lucide icon for now */}
           <ChevronsRight className="hidden md:block absolute top-1/2 right-0 h-24 w-24 text-primary/30 transform translate-x-1/2 -translate-y-1/2" />
-
-           {/* Simplified Swirl SVG - uncomment to use, might need positioning adjustments */}
-           {/* 
-            <svg width="120" height="100" viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="hidden md:block absolute -bottom-10 -left-10 opacity-50">
-              <path d="M10 90C20 70 40 30 60 30C80 30 90 70 110 90" stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M105 85L110 90L105 95" stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-           */}
         </div>
 
         {/* Right Column - Form */}
-        <div className="space-y-6 bg-card p-6 sm:p-8 rounded-xl shadow-xl border border-border">
+        <div className="space-y-6 bg-card p-6 sm:p-8 rounded-xl shadow-xl border border-border transition-all duration-300 ease-out hover:shadow-2xl hover:-translate-y-1">
           <p className="text-base text-muted-foreground">
             Please provide your text or upload a document to check for plagiarism.
           </p>
@@ -348,6 +340,13 @@ export default function HomePage() {
               <CheckCircle className="h-4 w-4 mr-1.5 shrink-0" /> Selected: {fileName}
             </p>
           )}
+          {isLoading && (
+             <div className="flex items-center justify-center text-sm text-muted-foreground">
+                <Spinner className="mr-2 h-4 w-4" />
+                <span>{currentTask || "Processing..."}</span>
+              </div>
+          )}
+
 
           <Button 
             onClick={handleSubmit} 
@@ -356,7 +355,7 @@ export default function HomePage() {
           >
             {isLoading ? (
               <>
-                <Spinner className="mr-2 h-5 w-5" /> {currentTask || "Processing..."}
+                <Spinner className="mr-2 h-5 w-5 animate-spin" /> {currentTask || "Processing..."}
               </>
             ) : (
               <>
@@ -369,4 +368,3 @@ export default function HomePage() {
     </div>
   );
 }
-
