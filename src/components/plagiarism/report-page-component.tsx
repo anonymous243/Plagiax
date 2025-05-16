@@ -1,109 +1,116 @@
 
 "use client";
 
-import type { GeneratePlagiarismReportOutput } from "@/ai/flows/generate-plagiarism-report";
+import type { FullReportData } from "@/context/ReportContext";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Info, FileSearch, CheckCircle, XCircle, AlertTriangle, LinkIcon, ExternalLink, Mail } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { FileSearch, Mail, FileText, CalendarDays, Percent, User, Fingerprint, FileType, Library, Globe, University, LinkIcon, ExternalLink, QrCode } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import * as React from "react";
+import { useAuth } from "@/context/AuthContext";
+import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 
 interface ReportPageComponentProps {
-  reportData: GeneratePlagiarismReportOutput;
+  reportDetails: FullReportData;
   onBack: () => void;
 }
 
-const PLAGIARISM_FREE_THRESHOLD = 5; // Percentage
+const getGrade = (percentage: number): string => {
+  if (percentage <= 10) return "A (Satisfactory)";
+  if (percentage <= 40) return "B (Upgrade)";
+  if (percentage <= 60) return "C (Poor)";
+  return "D (Unacceptable)";
+};
 
-export default function ReportPageComponent({ reportData, onBack }: ReportPageComponentProps) {
-  const { plagiarismPercentage, findings } = reportData;
-  const originalPercentage = 100 - plagiarismPercentage;
-  const isPlagiarismFree = plagiarismPercentage <= PLAGIARISM_FREE_THRESHOLD;
-  const { toast } = useToast();
-
-
-  let statusText = "";
-  let statusColorClass = "";
-  let StatusIcon = AlertTriangle;
-  let badgeVariant: "default" | "destructive" | "secondary" | "outline" = "default";
-
-
-  if (plagiarismPercentage > 50) {
-    statusText = "High Plagiarism Detected";
-    statusColorClass = "text-destructive";
-    StatusIcon = XCircle;
-    badgeVariant = "destructive";
-  } else if (plagiarismPercentage > PLAGIARISM_FREE_THRESHOLD) {
-    statusText = "Plagiarism Detected";
-    statusColorClass = "text-yellow-500 dark:text-yellow-400"; 
-    StatusIcon = AlertTriangle;
-    badgeVariant = "secondary"; 
-  } else {
-    statusText = "Plagiarism Free";
-    statusColorClass = "text-green-600 dark:text-green-400";
-    StatusIcon = CheckCircle;
+const getDomain = (url?: string): string => {
+  if (!url) return "N/A";
+  try {
+    const hostname = new URL(url).hostname;
+    // Remove www. if present for cleaner display
+    return hostname.startsWith('www.') ? hostname.substring(4) : hostname;
+  } catch (e) {
+    return "Invalid URL";
   }
+};
 
-  const getSimilarityColor = (score?: number) => {
-    if (score === undefined) return "text-muted-foreground";
-    if (score > 75) return "text-destructive";
-    if (score > 40) return "text-yellow-500 dark:text-yellow-400";
-    return "text-green-600 dark:text-green-400";
-  };
+interface InfoRowProps {
+  label: string;
+  value: string | number;
+  icon?: React.ElementType;
+}
+
+const InfoRow: React.FC<InfoRowProps> = ({ label, value, icon: Icon }) => (
+  <div className="flex justify-between items-center py-2">
+    <span className="text-sm text-muted-foreground flex items-center">
+      {Icon && <Icon className="h-4 w-4 mr-2" />}
+      {label}
+    </span>
+    <span className="text-sm font-medium text-right">{value}</span>
+  </div>
+);
+
+export default function ReportPageComponent({ reportDetails, onBack }: ReportPageComponentProps) {
+  const { currentUser } = useAuth();
+  const { toast } = useToast();
+  const { aiOutput, documentTitle, documentTextContent, submissionTimestamp, submissionId } = reportDetails;
+  const { plagiarismPercentage, findings } = aiOutput;
+
+  const totalWords = React.useMemo(() => {
+    return documentTextContent.split(/\s+/).filter(Boolean).length;
+  }, [documentTextContent]);
+
+  const grade = getGrade(plagiarismPercentage);
 
   const handleShareEmail = () => {
-    const subject = `Plagiarism Report Summary - ${statusText}`;
-    let body = `Plagiarism Report Summary:\n\n`;
-    body += `Overall Similarity: ${plagiarismPercentage.toFixed(1)}%\n`;
-    body += `Originality: ${originalPercentage.toFixed(1)}%\n`;
-    body += `Status: ${statusText}\n\n`;
+    const subject = `Plagiax Plagiarism Report: ${documentTitle}`;
+    let body = `Plagiax Plagiarism Report\n\n`;
+    body += `--- Submission Information ---\n`;
+    body += `Author Name: ${currentUser?.fullName || 'N/A'}\n`;
+    body += `Title: ${documentTitle}\n`;
+    body += `Paper/Submission ID: ${submissionId}\n`;
+    body += `Submitted by: ${currentUser?.email || 'N/A'}\n`;
+    body += `Submission Date: ${format(new Date(submissionTimestamp), 'yyyy-MM-dd HH:mm:ss')}\n`;
+    body += `Total Words: ${totalWords}\n\n`;
+    
+    body += `--- Result Information ---\n`;
+    body += `Similarity: ${plagiarismPercentage.toFixed(1)}%\n`;
+    body += `Matched Sources: ${findings.length}\n`;
+    body += `Grade: ${grade}\n\n`;
 
     if (findings && findings.length > 0) {
-      body += `Detailed Findings (${findings.length} matches):\n`;
+      body += `--- Matched Sources ---\n`;
       findings.forEach((finding, index) => {
         body += `\nMatch #${index + 1}:\n`;
-        body += `  Snippet from Document: "${finding.snippetFromDocument}"\n`;
-        if (finding.sourceSnippet) {
-          body += `  Potential Source Snippet: "${finding.sourceSnippet}"\n`;
-        }
+        body += `  Snippet: "${finding.snippetFromDocument.substring(0, 100)}..."\n`;
         if (finding.sourceURL) {
-          body += `  Source URL: ${finding.sourceURL}\n`;
+          body += `  Domain: ${getDomain(finding.sourceURL)}\n`;
         }
         if (finding.similarityScore !== undefined) {
-          body += `  Similarity Score: ${finding.similarityScore.toFixed(0)}%\n`;
+          body += `  Similarity: ${finding.similarityScore.toFixed(0)}%\n`;
         }
+        body += `  Source Type: Internet Data\n`;
       });
-    } else {
-      body += "No specific plagiarized snippets were detailed in this report.\n";
     }
     
     body += "\nGenerated by Plagiax.";
-
     const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     
-    // Attempt to open the mail client
     const newWindow = window.open(mailtoLink, '_blank');
-
     if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-        // The browser might have blocked the new window
-        // Fallback: copy to clipboard and notify user
         try {
             navigator.clipboard.writeText(`Subject: ${subject}\n\nBody:\n${body}`);
             toast({
                 title: "Email Client Blocked",
-                description: "Could not open your email client. The report summary has been copied to your clipboard. Please paste it into your email.",
+                description: "Could not open your email client. The report summary has been copied to your clipboard.",
                 variant: "default",
                 duration: 7000, 
             });
         } catch (err) {
             toast({
                 title: "Email Sharing Failed",
-                description: "Could not open your email client or copy the report to clipboard. Please try again or copy the details manually.",
+                description: "Could not open your email client or copy the report to clipboard.",
                 variant: "destructive",
             });
         }
@@ -116,122 +123,158 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
     }
   };
 
-
   return (
     <div className="container mx-auto py-8 px-4 flex flex-col items-center min-h-[calc(100vh-4rem)]">
-      <Card className="w-full max-w-3xl shadow-2xl rounded-xl">
-        <CardHeader className="text-center pb-4">
-           <div className={`mx-auto bg-opacity-10 p-3 rounded-full w-fit mb-4 ${isPlagiarismFree ? 'bg-green-500/10' : plagiarismPercentage > 50 ? 'bg-destructive/10' : 'bg-yellow-500/10'}`}>
-            <StatusIcon className={`h-12 w-12 ${statusColorClass}`} />
+      <Card className="w-full max-w-4xl shadow-2xl rounded-xl overflow-hidden">
+        <CardHeader className="bg-primary/10 p-6">
+          <div className="flex items-center gap-3 mb-1">
+            <FileText className="h-8 w-8 text-primary" />
+            <CardTitle className="text-2xl font-bold tracking-tight text-primary">Plagiax Plagiarism Report</CardTitle>
           </div>
-          <CardTitle className="text-3xl font-bold tracking-tight">Plagiarism Report</CardTitle>
-          <CardDescription className={`text-xl font-medium ${statusColorClass}`}>
-            {statusText}
+          <CardDescription className="text-sm text-primary/80">
+            The Report is Generated by Plagiax Plagiarism Detection Software
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 mb-6 text-center md:text-left">
-            <div>
-              <h3 className="text-xs uppercase text-muted-foreground tracking-wider mb-1">
-                Similarity
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button aria-label="Information about similar percentage" className="ml-1.5 p-0.5 inline-block align-middle rounded-full hover:bg-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                        <Info className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" align="center">
-                      <p>Overall percentage of text found similar to existing sources.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </h3>
-              <p className={`text-5xl font-bold ${plagiarismPercentage > PLAGIARISM_FREE_THRESHOLD ? statusColorClass : 'text-green-600 dark:text-green-400'}`}>
-                {plagiarismPercentage.toFixed(1)}%
-              </p>
+        
+        <CardContent className="p-6 space-y-8">
+          {/* Submission Information */}
+          <section>
+            <h2 className="text-lg font-semibold text-primary mb-3">Submission Information</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 border border-border rounded-lg p-4 bg-card shadow-sm">
+              <div>
+                <InfoRow label="Author Name" value={currentUser?.fullName || "N/A"} icon={User} />
+                <InfoRow label="Title" value={documentTitle} icon={FileText} />
+                <InfoRow label="Paper/Submission ID" value={submissionId} icon={Fingerprint} />
+                <InfoRow label="Submitted by" value={currentUser?.email || "N/A"} icon={Mail} />
+              </div>
+              <div>
+                <InfoRow label="Submission Date" value={format(new Date(submissionTimestamp), 'yyyy-MM-dd HH:mm:ss')} icon={CalendarDays} />
+                <InfoRow label="Total Pages" value="N/A" icon={FileType} />
+                <InfoRow label="Total Words" value={totalWords} icon={FileType} />
+                <InfoRow label="Document Type" value="General Document" icon={FileType} />
+              </div>
             </div>
-            <div>
-              <h3 className="text-xs uppercase text-muted-foreground tracking-wider mb-1">Originality</h3>
-              <p className={`text-5xl font-bold ${originalPercentage < (100 - PLAGIARISM_FREE_THRESHOLD) ? statusColorClass : 'text-green-600 dark:text-green-400'}`}>
-                {originalPercentage.toFixed(1)}%
-              </p>
+          </section>
+
+          <Separator />
+
+          {/* Result Information */}
+          <section>
+            <h2 className="text-lg font-semibold text-primary mb-3">Result Information</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+              <Card className="p-4 shadow-sm">
+                <CardDescription className="text-xs uppercase text-muted-foreground">Similarity</CardDescription>
+                <p className="text-3xl font-bold text-destructive">{plagiarismPercentage.toFixed(1)}%</p>
+              </Card>
+              <Card className="p-4 shadow-sm">
+                <CardDescription className="text-xs uppercase text-muted-foreground">Matched Sources</CardDescription>
+                <p className="text-3xl font-bold">{findings.length}</p>
+              </Card>
+              <Card className="p-4 shadow-sm">
+                <CardDescription className="text-xs uppercase text-muted-foreground">Grade</CardDescription>
+                <p className="text-3xl font-bold">{grade.split(' ')[0]}</p> 
+                <p className="text-xs text-muted-foreground">{grade.substring(grade.indexOf(' '))}</p>
+              </Card>
             </div>
+          </section>
+          
+          <Separator />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Exclude Information */}
+            <section>
+              <h2 className="text-lg font-semibold text-primary mb-3">Exclude Information</h2>
+              <div className="space-y-1 border border-border rounded-lg p-4 bg-card shadow-sm">
+                <InfoRow label="Quotes" value="Excluded" />
+                <InfoRow label="References/Bibliography" value="Excluded" />
+                <InfoRow label="Source: Excluded < 14 Words" value="Excluded" />
+                <InfoRow label="Excluded Source" value="0%" />
+                <InfoRow label="Excluded Phrases" value="Not Excluded" />
+              </div>
+            </section>
+
+            {/* Database Selection */}
+            <section>
+              <h2 className="text-lg font-semibold text-primary mb-3">Database Selection</h2>
+               <div className="space-y-1 border border-border rounded-lg p-4 bg-card shadow-sm">
+                <InfoRow label="Language" value="English" icon={Languages} />
+                <InfoRow label="Student Papers" value="Yes" icon={Library} />
+                <InfoRow label="Journals & Publishers" value="Yes" icon={Library}/>
+                <InfoRow label="Internet or Web" value="Yes" icon={Globe} />
+                <InfoRow label="Institution Repository" value="Yes" icon={University} />
+              </div>
+            </section>
           </div>
-          
-          <Progress 
-            value={plagiarismPercentage} 
-            className={`h-3 rounded-full ${isPlagiarismFree ? 'bg-green-200 dark:bg-green-700 [&>div]:bg-green-500' : plagiarismPercentage > 50 ? 'bg-red-200 dark:bg-red-700 [&>div]:bg-destructive' : 'bg-yellow-200 dark:bg-yellow-700 [&>div]:bg-yellow-500'}`}
-            aria-label={`Plagiarism percentage: ${plagiarismPercentage.toFixed(1)}%`}
-          />
-          
+
+          {/* Matched Source Details */}
           {findings && findings.length > 0 && (
-            <div className="pt-4">
-              <Separator className="my-4" />
-              <h3 className="text-xl font-semibold mb-3 text-center md:text-left">Detailed Findings</h3>
-              <Accordion type="single" collapsible className="w-full">
-                {findings.map((finding, index) => (
-                  <AccordionItem value={`item-${index}`} key={index} data-radix-accordion-item className="border-border rounded-lg mb-3 shadow-sm hover:shadow-md transition-shadow bg-card">
-                    <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                      <div className="flex items-center justify-between w-full">
-                        <span className="truncate text-sm font-medium max-w-[calc(100%-8rem)] sm:max-w-[calc(100%-6rem)]">
-                          Match #{index + 1}: "{finding.snippetFromDocument.substring(0,40)}..."
-                        </span>
-                        {finding.similarityScore !== undefined && (
-                           <Badge variant={
-                            finding.similarityScore > 75 ? "destructive" :
-                            finding.similarityScore > 40 ? "secondary" : 
-                            "default" 
-                          } className={`ml-auto ${getSimilarityColor(finding.similarityScore)}`}>
-                            {finding.similarityScore.toFixed(0)}% Similar
-                          </Badge>
-                        )}
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4 space-y-3 text-sm">
-                      <div>
-                        <h4 className="font-semibold text-muted-foreground mb-1">Matched Snippet from Your Document:</h4>
-                        <p className="p-2 bg-muted/50 rounded-md border border-dashed border-border text-foreground italic">"{finding.snippetFromDocument}"</p>
-                      </div>
-                      {finding.sourceSnippet && (
-                         <div>
-                          <h4 className="font-semibold text-muted-foreground mb-1">Potential Source Snippet:</h4>
-                          <p className="p-2 bg-muted/50 rounded-md border border-dashed border-border text-foreground italic">"{finding.sourceSnippet}"</p>
-                        </div>
-                      )}
-                      {finding.sourceURL && (
-                        <div className="flex items-center">
-                           <LinkIcon className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
-                          <a 
-                            href={finding.sourceURL} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="text-primary hover:underline truncate flex-grow break-all"
-                          >
-                            {finding.sourceURL}
-                          </a>
-                          <ExternalLink className="h-4 w-4 ml-1 text-muted-foreground flex-shrink-0" />
-                        </div>
-                      )}
-                       {!finding.sourceURL && !finding.sourceSnippet && (
-                        <p className="text-muted-foreground text-xs">Source information not available for this match.</p>
-                       )}
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </div>
+            <section>
+              <Separator className="my-6" />
+              <h2 className="text-lg font-semibold text-primary mb-4">Matched Source Details</h2>
+              <div className="overflow-x-auto border border-border rounded-lg shadow-sm bg-card">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[60%]">Matched Domain</TableHead>
+                      <TableHead className="text-center">Similarity</TableHead>
+                      <TableHead>Source Type</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {findings.map((finding, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">
+                           {finding.sourceURL ? (
+                            <a 
+                              href={finding.sourceURL} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="text-primary hover:underline flex items-center break-all"
+                            >
+                              <LinkIcon className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+                              {getDomain(finding.sourceURL)}
+                              <ExternalLink className="h-3.5 w-3.5 ml-1 text-muted-foreground flex-shrink-0" />
+                            </a>
+                          ) : (
+                            getDomain(finding.sourceURL)
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {finding.similarityScore !== undefined ? `${finding.similarityScore.toFixed(0)}%` : "N/A"}
+                        </TableCell>
+                        <TableCell>Internet Data</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </section>
           )}
-           {findings && findings.length === 0 && !isPlagiarismFree && (
-             <div className="pt-4 text-center">
+           {findings && findings.length === 0 && plagiarismPercentage > 0 && (
+             <div className="pt-4 text-center text-muted-foreground">
                 <Separator className="my-4" />
-                <p className="text-muted-foreground">While an overall similarity percentage was detected, specific matching snippets could not be detailed by the AI.</p>
+                <p>While an overall similarity percentage was detected, specific matching sources could not be detailed by the AI for this report.</p>
+             </div>
+           )}
+           {plagiarismPercentage === 0 && (
+             <div className="pt-4 text-center text-green-600 dark:text-green-400">
+                <Separator className="my-4" />
+                <p className="font-semibold">No plagiarism detected based on the provided settings.</p>
              </div>
            )}
 
+          {/* QR Code Placeholder */}
+          <section className="text-center mt-8">
+            <Separator className="my-6" />
+            <h3 className="text-md font-semibold text-muted-foreground mb-2">View/Download/Share PDF File</h3>
+            <div className="inline-flex flex-col items-center p-4 border border-dashed border-border rounded-lg bg-muted/30">
+              <QrCode className="h-24 w-24 text-muted-foreground mb-2" data-ai-hint="qr code placeholder"/>
+              <p className="text-xs text-muted-foreground">A Unique QR Code (Feature Coming Soon)</p>
+            </div>
+          </section>
 
         </CardContent>
-        <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-3 p-6 pt-6 border-t border-border mt-4">
+        <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-3 p-6 pt-6 border-t border-border mt-4 bg-muted/30">
           <Button variant="outline" onClick={onBack} className="w-full sm:w-auto text-base py-3 rounded-lg">
             <FileSearch className="mr-2 h-5 w-5" /> Check Another
           </Button>
@@ -243,4 +286,3 @@ export default function ReportPageComponent({ reportData, onBack }: ReportPageCo
     </div>
   );
 }
-

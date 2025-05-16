@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/ui/spinner";
 import { AlertCircle, FileText, FileUp, CheckCircle, Brain } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useReport } from "@/context/ReportContext";
+import { useReport, type FullReportData } from "@/context/ReportContext";
 import { useAuth } from "@/context/AuthContext";
 import type { ReportHistoryItemSummary } from "@/types/history";
 
@@ -33,7 +33,7 @@ export default function HomePage() {
   const [fileName, setFileName] = React.useState<string | null>(null);
   const { toast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const { setReportData } = useReport();
+  const { setReportDetails } = useReport();
 
   React.useEffect(() => {
     if (!authIsLoading && !isAuthenticated) {
@@ -151,16 +151,28 @@ export default function HomePage() {
     toast({ title: "Hold Tight!", description: "Analyzing your document for plagiarism. This might take some time." });
 
     try {
-      const report = await generatePlagiarismReport({ documentText });
-      setReportData(report);
+      const aiReport = await generatePlagiarismReport({ documentText });
+      
+      const submissionTimestamp = Date.now();
+      const submissionId = new Date(submissionTimestamp).toISOString() + Math.random().toString(36).substring(2, 9);
+      const currentDocumentTitle = fileName || documentText.substring(0, 70) + (documentText.length > 70 ? "..." : "");
 
-      // Save report to history if user is authenticated
+      const fullReportData: FullReportData = {
+        aiOutput: aiReport,
+        documentTitle: currentDocumentTitle,
+        documentTextContent: documentText,
+        submissionTimestamp: submissionTimestamp,
+        submissionId: submissionId,
+      };
+      setReportDetails(fullReportData);
+
+      // Save report summary to history if user is authenticated
       if (isAuthenticated && currentUser) {
         const historyItem: ReportHistoryItemSummary = {
-          id: new Date().toISOString() + Math.random().toString(36).substring(2, 9),
-          timestamp: Date.now(),
-          plagiarismPercentage: report.plagiarismPercentage,
-          documentTitle: fileName || documentText.substring(0, 50) + (documentText.length > 50 ? "..." : ""),
+          id: submissionId, // Use the generated submissionId for history
+          timestamp: submissionTimestamp,
+          plagiarismPercentage: aiReport.plagiarismPercentage,
+          documentTitle: currentDocumentTitle,
           fileName: fileName || undefined,
         };
 
@@ -338,4 +350,3 @@ export default function HomePage() {
     </div>
   );
 }
-

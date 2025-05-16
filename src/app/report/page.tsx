@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -11,20 +12,15 @@ import { useAuth } from "@/context/AuthContext";
 import { Spinner } from "@/components/ui/spinner";
 
 export default function ReportPage() {
-  const { reportData, setReportData } = useReport();
+  const { reportDetails, setReportDetails } = useReport();
   const router = useRouter();
   const [isClient, setIsClient] = React.useState(false);
   const { isAuthenticated, isLoading: authIsLoading } = useAuth();
 
   React.useEffect(() => {
     setIsClient(true);
-    // Optionally clear report data when navigating away or on unmount if desired
-    // return () => {
-    //   setReportData(null); 
-    // };
-  }, []); // Corrected dependency array
+  }, []);
 
-  // Auth redirection logic
   React.useEffect(() => {
     if (isClient && !authIsLoading && !isAuthenticated) {
       router.replace('/login');
@@ -32,15 +28,11 @@ export default function ReportPage() {
   }, [isClient, authIsLoading, isAuthenticated, router]);
 
   const handleGoBack = () => {
-    setReportData(null); // Clear report data when going back
+    setReportDetails(null); 
     router.push("/");
   };
 
   if (!isClient || authIsLoading || (isClient && !authIsLoading && !isAuthenticated)) {
-    // Show spinner if:
-    // 1. Not client yet (isClient is false)
-    // 2. Auth state is loading (authIsLoading is true)
-    // 3. Auth loaded, but not authenticated (isAuthenticated is false) - redirect will occur
     return (
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
         <Spinner className="h-10 w-10 text-primary" />
@@ -48,12 +40,7 @@ export default function ReportPage() {
     );
   }
   
-  // If we reach here, then:
-  // isClient = true
-  // authIsLoading = false
-  // isAuthenticated = true
-
-  if (!reportData) {
+  if (!reportDetails) {
     return (
       <div className="container mx-auto py-12 px-4 flex flex-col items-center justify-center min-h-[calc(100vh-4rem)]">
         <Card className="w-full max-w-md shadow-lg text-center">
@@ -77,6 +64,5 @@ export default function ReportPage() {
     );
   }
 
-  return <ReportPageComponent reportData={reportData} onBack={handleGoBack} />;
+  return <ReportPageComponent reportDetails={reportDetails} onBack={handleGoBack} />;
 }
-
