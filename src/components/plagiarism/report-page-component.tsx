@@ -5,7 +5,7 @@ import type { FullReportData } from "@/context/ReportContext";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileSearch, Mail, FileText, CalendarDays, Percent, User, Fingerprint, FileType, Library, Globe, University, LinkIcon, ExternalLink, QrCode } from "lucide-react";
+import { FileSearch, Mail, FileText, CalendarDays, Percent, User, Fingerprint, FileType, Library, Globe, University, LinkIcon, ExternalLink, QrCode, Languages } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import * as React from "react";
 import { useAuth } from "@/context/AuthContext";
