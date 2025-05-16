@@ -3,13 +3,14 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import Script from 'next/script'; // Added for Visme embed
 import { generatePlagiarismReport } from "@/ai/flows/generate-plagiarism-report";
 import { extractTextFromDocument } from "@/ai/flows/extract-text-from-document";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/ui/spinner";
-import { AlertCircle, CheckCircle, CloudUpload, Send, ChevronsRight } from "lucide-react"; // Changed FileText to Send, FileUp to CloudUpload
+import { AlertCircle, CheckCircle, CloudUpload, Send, ChevronsRight } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useReport, type FullReportData } from "@/context/ReportContext";
 import { useAuth } from "@/context/AuthContext";
@@ -68,7 +69,7 @@ export default function HomePage() {
     setIsLoading(true);
     setCurrentTask("Reading file...");
     setFileName(file.name);
-    setDocumentText(""); // Clear pasted text if a file is chosen
+    setDocumentText(""); 
 
     try {
       const reader = new FileReader();
@@ -89,8 +90,6 @@ export default function HomePage() {
         try {
           const extractionResult = await extractTextFromDocument({ documentDataUri: dataUri });
           if (extractionResult && extractionResult.extractedText) {
-            // Set documentText with extracted content, useful if user wants to see it (though it's not directly shown in this UI)
-            // setDocumentText(extractionResult.extractedText); 
             toast({
               title: "File Ready",
               description: `${file.name} is ready to be checked.`,
@@ -138,8 +137,7 @@ export default function HomePage() {
       return;
     }
     
-    if (fileName && !documentText.trim()) { // File is selected, but no text extracted yet or error during extraction
-        // We need to re-extract if the user didn't paste text
+    if (fileName && !documentText.trim()) { 
         const file = fileInputRef.current?.files?.[0];
         if (file) {
             setIsLoading(true);
@@ -151,6 +149,7 @@ export default function HomePage() {
                     reader.onerror = reject;
                     reader.readAsDataURL(file);
                 });
+                setCurrentTask("Extracting text...");
                 const extractionResult = await extractTextFromDocument({ documentDataUri: dataUri });
                 if (!extractionResult || !extractionResult.extractedText) {
                     setError("Could not extract text from the selected file for checking.");
@@ -165,7 +164,7 @@ export default function HomePage() {
                  setCurrentTask("");
                  return;
             }
-        } else if (!textToCheck.trim()){ // No file and no text
+        } else if (!textToCheck.trim()){ 
             setError("No content to check. Please upload a file or paste text.");
             setIsLoading(false);
             setCurrentTask("");
@@ -248,7 +247,7 @@ export default function HomePage() {
     fileInputRef.current?.click();
   };
 
-  if (authIsLoading && !isAuthenticated) { // Show spinner only if not authenticated and auth is loading
+  if (authIsLoading && !isAuthenticated) { 
     return (
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
         <Spinner className="h-10 w-10 text-primary" />
@@ -257,7 +256,7 @@ export default function HomePage() {
   }
   
   return (
-    <div className="container mx-auto py-8 px-4 md:py-12"> {/* Reduced top/bottom padding slightly */}
+    <div className="container mx-auto py-8 px-4 md:py-12">
       <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
         {/* Left Column */}
         <div className="space-y-6 relative">
@@ -270,7 +269,6 @@ export default function HomePage() {
           <p className="text-lg text-muted-foreground">
              Leveraging state-of-the-art artificial intelligence, Plagiax conducts comprehensive textual analysis by cross-referencing submitted documents against an expansive global content database. Our intelligent system provides nuanced originality insights, with intelligent parsing capabilities that extract and analyze core content from diverse file formats including DOCX and PDF. Users should interpret results as a sophisticated guidance tool, recognizing the contextual nature of content similarity.
           </p>
-          {/* Placeholder for swirl - using a Lucide icon for now */}
           <ChevronsRight className="hidden md:block absolute top-1/2 right-0 h-24 w-24 text-primary/30 transform translate-x-1/2 -translate-y-1/2" />
         </div>
 
@@ -294,7 +292,7 @@ export default function HomePage() {
             value={documentText}
             onChange={(e) => {
               setDocumentText(e.target.value);
-              if (e.target.value && fileName) { // If user types, deselect file
+              if (e.target.value && fileName) { 
                 setFileName(null);
                 if(fileInputRef.current) fileInputRef.current.value = "";
               }
@@ -307,8 +305,8 @@ export default function HomePage() {
           <div 
             className="mt-1 flex flex-col items-center justify-center p-6 border-2 border-dashed border-input rounded-lg cursor-pointer hover:border-primary/50 transition-colors"
             onClick={triggerFileInput}
-            onDragOver={(e) => e.preventDefault()} // Basic drag over
-            onDrop={(e) => { // Basic drop, delegates to file input
+            onDragOver={(e) => e.preventDefault()} 
+            onDrop={(e) => { 
                 e.preventDefault();
                 if (e.dataTransfer.files && e.dataTransfer.files[0]) {
                     if (fileInputRef.current) {
@@ -364,6 +362,32 @@ export default function HomePage() {
             )}
           </Button>
         </div>
+      </div>
+
+      {/* Visme Embed Section */}
+      <section className="mt-16 py-8 border-t border-border">
+        <h2 className="text-3xl font-bold text-center mb-8 text-primary">
+          Stay Updated with Plagiax
+        </h2>
+        <div
+          className="visme_d mx-auto"
+          data-title="Mailing List Sign Up Form"
+          data-url="x4xzdegn-mailing-list-sign-up-form?fullPage=true"
+          data-domain="forms"
+          data-full-page="true"
+          data-min-height="100vh"
+          data-form-id="127395"
+        ></div>
+        <Script
+          src="https://static-bundles.visme.co/forms/vismeforms-embed.js"
+          strategy="lazyOnload"
+          id="visme-form-script"
+        />
+      </section>
+
+      {/* Informational Text */}
+      <div className="mt-16 text-center text-sm text-muted-foreground max-w-3xl mx-auto">
+          Leveraging state-of-the-art artificial intelligence, Plagiax conducts comprehensive textual analysis by cross-referencing submitted documents against an expansive global content database. Our intelligent system provides nuanced originality insights, with intelligent parsing capabilities that extract and analyze core content from diverse file formats including DOCX and PDF. Users should interpret results as a sophisticated guidance tool, recognizing the contextual nature of content similarity.
       </div>
     </div>
   );
