@@ -6,7 +6,8 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { Header } from '@/components/layout/header';
 import { Toaster } from '@/components/ui/toaster';
 import { ReportProvider } from '@/context/ReportContext';
-import { AuthProvider } from '@/context/AuthContext'; // Add this import
+import { AuthProvider } from '@/context/AuthContext';
+import { CookieConsentPopup } from '@/components/cookie-consent-popup'; // Added import
 
 const geist = Geist({ 
   variable: '--font-geist-sans',
@@ -30,13 +31,14 @@ export default function RootLayout({
         <ThemeProvider
           defaultTheme="system"
         >
-          <AuthProvider> {/* Wrap with AuthProvider */}
+          <AuthProvider>
             <ReportProvider>
               <div className="relative flex min-h-screen flex-col">
                 <Header />
                 <main className="flex-1">{children}</main>
               </div>
               <Toaster />
+              <CookieConsentPopup /> {/* Added CookieConsentPopup */}
             </ReportProvider>
           </AuthProvider>
         </ThemeProvider>
