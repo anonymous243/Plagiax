@@ -71,17 +71,18 @@ const prompt = ai.definePrompt({
   prompt: `You are a plagiarism detection expert with advanced multi-language capabilities. You will receive the text content of a document.
 Your task is to:
 1.  Determine the overall plagiarism percentage (0-100) for the entire document.
-2.  Identify specific segments within the document that appear to be plagiarized.
-3.  For each plagiarized segment, provide:
+2.  Identify specific segments within the document that appear to be plagiarized. This includes direct copies, as well as cleverly paraphrased content or AI-modified text that attempts to evade simple string-matching. Pay special attention to rephrased sentences, synonym swaps, and structural changes that maintain the original meaning but alter the wording.
+3.  For each plagiarized segment (including paraphrased ones), provide:
     a.  The exact 'snippetFromDocument' from the submitted text.
     b.  The 'sourceURL' from which the content was likely taken, if identifiable.
     c.  The 'sourceSnippet' from the identified source that matches the document's snippet, if available.
-    d.  A 'similarityScore' (0-100) for that specific segment, indicating how similar it is to the source.
+    d.  A 'similarityScore' (0-100) for that specific segment, indicating how similar it is to the source, considering both lexical and semantic similarity.
 
 Your analysis should include:
 -   Comprehensive plagiarism checking across 50+ languages.
 -   Intelligent translation and cross-linguistic similarity detection where applicable.
 -   Preservation of linguistic nuances and context during analysis.
+-   Advanced detection of paraphrasing, including AI-assisted modifications.
 
 Return your findings as a structured list. If no plagiarism is detected, the 'plagiarismPercentage' should be 0 and the 'findings' array should be empty.
 Do not invent sources or similarity scores if they cannot be reasonably determined.

@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { Metadata } from 'next';
-import { Building, Gavel, Info, Lightbulb, ShieldCheck, Target, Users, Languages, BrainCircuit, ShieldEllipsis } from "lucide-react";
+import { Building, Gavel, Info, Lightbulb, ShieldCheck, Target, Users, Languages, BrainCircuit, ShieldEllipsis, SearchCheck } from "lucide-react";
 
 export const metadata: Metadata = {
   title: 'About Plagiax',
@@ -67,6 +67,7 @@ export default function AboutPage() {
             "Deep learning algorithms for contextual understanding",
             "Semantic similarity detection",
             "Paraphrase and disguised plagiarism identification",
+            "AI-Assisted Paraphrasing Detection: Identifies cleverly paraphrased or AI-modified content.",
           ]}
         />
         <InfoCard
@@ -187,7 +188,8 @@ function InfoCard({ icon, title, description, items }: InfoCardProps) {
           <ul className="space-y-2 text-base">
             {items.map((item, index) => (
               <li key={index} className="flex items-start">
-                <Info className="h-5 w-5 text-primary mr-2 mt-0.5 shrink-0" />
+                 {/* Using a generic Info icon for list items, can be customized */}
+                <SearchCheck className="h-5 w-5 text-primary mr-2 mt-0.5 shrink-0" />
                 <span>{item}</span>
               </li>
             ))}
