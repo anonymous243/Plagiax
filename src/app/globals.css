@@ -70,7 +70,8 @@
 @layer base {
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-geist-sans), sans-serif;
+    /* font-family is now primarily handled by the .font-sans class on <body> 
+       which uses --font-primary-sans defined in layout.tsx via tailwind.config.ts */
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold;
