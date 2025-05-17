@@ -23,6 +23,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
+    var errorMsgPrefix_1, responseBodyText_1; // Hoisted for the fix
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
@@ -117,29 +118,41 @@ var generatePlagiarismReportFlow = genkit_1.ai.defineFlow({
                 CORE_API_ENDPOINT = "https://core.ac.uk/api-v2/articles/search/".concat(encodeURIComponent(input.documentText.substring(0, 500)), "?apiKey=").concat(coreApiKey, "&limit=5");
                 _c.label = 1;
             case 1:
-                _c.trys.push([1, 4, , 5]);
+                _c.trys.push([1, 4.5, , 5]); // Try block starts here, catch is 4.5, finally/after is 5
                 return [4 /*yield*/, (0, node_fetch_1.default)(CORE_API_ENDPOINT)];
             case 2:
                 response = _c.sent();
-                if (!!response.ok) return [3 /*break*/, 3];
-                console.error("CORE API request failed with status ".concat(response.status, ": ").concat(yield response.text()));
+                if (!!response.ok) {
+                     _c.label = 3.4; 
+                     return [4 /*yield*/, response.json()];
+                }
+                // This is the !response.ok block
+                errorMsgPrefix_1 = "CORE API request failed with status ".concat(response.status, ": ");
+                _c.label = 3; // Set label for the new state after response.text() resolves
+                return [4 /*yield*/, response.text()];
+            case 3: // New state for handling response.text() result
+                responseBodyText_1 = _c.sent();
+                console.error(errorMsgPrefix_1.concat(responseBodyText_1));
                 coreMetadataString = JSON.stringify({ error: "Failed to fetch data from CORE API", status: response.status });
-                return [3 /*break*/, 4];
-            case 3: return [4 /*yield*/, response.json()];
-            case 3.5: // Adjusted label for transpiled JS
+                return [3 /*break*/, 4]; // Jump to state 4 (end of try's conditional block)
+
+            case 3.4: // New state after response.json() is yielded if response.ok was true
                 data_1 = _c.sent();
                 coreMetadataString = JSON.stringify(data_1, null, 2);
-                _c.label = 4;
-                break;
-            case 4:
-                _c.label = 4; // Ensure this label is distinct if previous case doesn't fall through.
-                return [3 /*break*/, 5];
-            case 4.5: // Catch block
+                return [3 /*break*/, 4]; // Correctly jump to state 4
+
+            case 3.5: 
+                return [3 /*break*/, 4]; 
+
+            case 4: 
+                return [3 /*break*/, 5]; // Jump to state 5 (after try-catch for metadata)
+            case 4.5: // Catch block for metadata fetch error
                 error_1 = _c.sent();
                 console.error("Error fetching from CORE API:", error_1);
                 coreMetadataString = JSON.stringify({ error: "Exception during CORE API fetch", message: error_1.message });
-                return [3 /*break*/, 5];
-            case 5: return [4 /*yield*/, prompt({ documentText: input.documentText, coreMetadata: coreMetadataString })];
+                return [3 /*break*/, 5]; // Jump to state 5
+            case 5: // After metadata fetch try-catch block
+                return [4 /*yield*/, prompt({ documentText: input.documentText, coreMetadata: coreMetadataString })];
             case 6:
                 output = (_c.sent()).output;
                 if (!output) {
@@ -156,6 +169,7 @@ var generatePlagiarismReportFlow = genkit_1.ai.defineFlow({
         }
     });
 }); });
+
 // Ensure consistent labeling for the transpiled JavaScript:
 // If `case 3` has an async operation that might error and jump to `case 4.5` (catch block),
 // then `case 4` after the try block should be correctly labeled and reached.
