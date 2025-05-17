@@ -110,8 +110,8 @@ export default function HomePage() {
           let errorMsg = `Failed to extract text: ${extractionError.message || "Unknown error."}`;
           if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" && (extractionError.message || "").toLowerCase().includes("server component")) {
             errorMsg = "Failed to extract text from DOCX. This can sometimes occur with complex DOCX files. Please try converting to PDF or pasting the text directly.";
-          } else if ((extractionError.message || "").toLowerCase().includes("server component")) {
-            errorMsg = "Failed to extract text due to a server-side issue. Please try again or contact support if the problem persists."
+          } else if ((extractionError.message || "").toLowerCase().includes("server component") || (extractionError.message || "").toLowerCase().includes("flow execution")) {
+            errorMsg = "Failed to extract text due to a server-side issue or flow error. Please try again or contact support if the problem persists."
           }
           setError(errorMsg);
           if (fileInputRef.current) fileInputRef.current.value = "";
@@ -148,14 +148,6 @@ export default function HomePage() {
       return;
     }
     
-    // If a file is selected but documentText is empty, it means extraction happened (or was supposed to happen)
-    // and documentText state should have been populated.
-    // If documentText is STILL empty, it implies extraction failed OR the document was empty.
-    // The handleFileChange logic should set an error or populate documentText.
-    // This re-extraction logic here might be redundant if handleFileChange is robust.
-    // However, keeping it as a fallback if user clears textarea after successful extraction
-    // and then clicks submit with file still selected.
-
     if (fileName && !documentText.trim()) { 
         const file = fileInputRef.current?.files?.[0];
         if (file) {
@@ -194,7 +186,7 @@ export default function HomePage() {
             setCurrentTask("");
             return;
         }
-    } else if (documentText.trim() && !fileName){ // Text pasted, no file name
+    } else if (documentText.trim() && !fileName){ 
         docTitle = documentText.substring(0, 70) + (documentText.length > 70 ? "..." : "");
     }
 
@@ -271,7 +263,7 @@ export default function HomePage() {
     fileInputRef.current?.click();
   };
 
-  if (authIsLoading && !isAuthenticated) { 
+  if (authIsLoading && !isAuthenticated && !['/login', '/signup', '/about', '/terms'].includes(router.pathname)) { 
     return (
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
         <Spinner className="h-10 w-10 text-primary" />

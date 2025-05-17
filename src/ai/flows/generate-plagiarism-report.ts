@@ -1,15 +1,8 @@
-
 'use server';
-/**
- * @fileOverview AI flow for generating plagiarism reports.
- * It uses the CORE API to fetch academic articles for comparison.
- * - generatePlagiarismReport - Main function to call the flow.
- * - GeneratePlagiarismReportInput - Input schema for the flow.
- * - GeneratePlagiarismReportOutput - Output schema for the flow.
- */
+
 import { ai } from '../genkit';
 import { z } from 'genkit';
-import fetch from 'node-fetch'; // Using node-fetch v2 for CommonJS compatibility if needed
+import fetch from 'node-fetch'; // Ensure this is node-fetch v2 for CommonJS compatibility if not using ESM
 
 const GeneratePlagiarismReportInputSchema = z.object({
   documentText: z
@@ -18,7 +11,7 @@ const GeneratePlagiarismReportInputSchema = z.object({
   coreMetadata: z
     .string()
     .optional()
-    .describe('Pre-fetched metadata from the CORE API (if available, otherwise fetched in flow).'),
+    .describe('Metadata from the CORE API.'),
 });
 export type GeneratePlagiarismReportInput = z.infer<typeof GeneratePlagiarismReportInputSchema>;
 
@@ -104,34 +97,42 @@ const generatePlagiarismReportFlow = ai.defineFlow(
     let coreMetadataString = input.coreMetadata;
 
     if (!coreMetadataString) {
-      // Ensure YOUR_API_KEY is replaced with an actual environment variable or secure configuration in a real app
-      const coreApiKey = process.env.CORE_API_KEY || "YOUR_API_KEY"; 
-      const CORE_API_ENDPOINT = `https://core.ac.uk/api-v2/articles/search/${encodeURIComponent(input.documentText.substring(0, 500))}?apiKey=${coreApiKey}&limit=5`; // Limit search for performance
+      const coreApiKey = process.env.CORE_API_KEY || "eX1MLyWY0CfukdUF9V4bAJG6Sv5TcKwi"; // Prefer environment variable
+      // Use a more limited portion of the text for the query to avoid overly long URLs or performance issues
+      const queryText = input.documentText.substring(0, 250); 
+      const CORE_API_ENDPOINT = `https://core.ac.uk/api-v2/articles/search/${encodeURIComponent(queryText)}?apiKey=${coreApiKey}&limit=5`;
+
+      console.log("[generatePlagiarismReportFlow] CORE API Endpoint:", CORE_API_ENDPOINT);
 
       try {
         const response = await fetch(CORE_API_ENDPOINT);
         if (!response.ok) {
-          console.error(`CORE API request failed with status ${response.status}: ${await response.text()}`);
-          coreMetadataString = JSON.stringify({ error: "Failed to fetch data from CORE API", status: response.status });
+          const errorBody = await response.text();
+          console.error(`[generatePlagiarismReportFlow] CORE API request failed with status ${response.status}: ${errorBody}`);
+          coreMetadataString = JSON.stringify({ error: "Failed to fetch data from CORE API", status: response.status, body: errorBody });
         } else {
           const data = await response.json();
           coreMetadataString = JSON.stringify(data, null, 2);
         }
       } catch (error: any) {
-        console.error("Error fetching from CORE API:", error);
+        console.error("[generatePlagiarismReportFlow] Error fetching from CORE API:", error);
         coreMetadataString = JSON.stringify({ error: "Exception during CORE API fetch", message: error.message });
       }
     }
+
+    // console.log("[generatePlagiarismReportFlow] CORE Metadata being sent to AI:", coreMetadataString ? coreMetadataString.substring(0, 200) + "..." : "None");
     
     const { output } = await prompt({ documentText: input.documentText, coreMetadata: coreMetadataString });
     
     if (!output) {
-      console.error("Plagiarism report generation failed to produce structured output from AI model.");
+      console.error("[generatePlagiarismReportFlow] Plagiarism report generation failed to produce structured output from AI model.");
+      // Return a default/empty report to prevent crashes downstream
       return {
         plagiarismPercentage: 0,
         findings: [],
       };
     }
+    
     return {
       plagiarismPercentage: output.plagiarismPercentage ?? 0,
       findings: output.findings ?? [],

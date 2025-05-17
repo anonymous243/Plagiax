@@ -2,14 +2,21 @@ import { config } from 'dotenv';
 config();
 
 import { generatePlagiarismReport } from './flows/generate-plagiarism-report';
-import './flows/extract-text-from-document.ts';
 
 async function testPlagiarismDetection() {
   const input = {
-    documentText: "This is a test document. It contains some text that may or may not be plagiarized."
+    documentText: "This is a test document. It contains some text that may or may not be plagiarized to test the plagiarism detection capabilities."
   };
-  const result = await generatePlagiarismReport(input);
-  console.log(result);
+  try {
+    console.log("Testing plagiarism detection with input:", input.documentText.substring(0, 50) + "...");
+    const result = await generatePlagiarismReport(input);
+    console.log("Plagiarism detection test result:", JSON.stringify(result, null, 2));
+  } catch (error) {
+    console.error("Error during plagiarism detection test:", error);
+  }
 }
 
-testPlagiarismDetection();
+// To run the test when Genkit starts in dev mode:
+if (process.env.NODE_ENV === 'development') { // Or some other condition if you prefer
+  testPlagiarismDetection();
+}
