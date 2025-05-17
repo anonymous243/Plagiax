@@ -1,3 +1,4 @@
+
 'use server';
 
 import { ai } from '../genkit';
@@ -65,12 +66,15 @@ const prompt = ai.definePrompt({
   prompt: `You are a plagiarism detection expert with advanced multi-language capabilities. You will receive the text content of a document and metadata from the CORE API.
 Your task is to:
 1.  Determine the overall plagiarism percentage (0-100) for the entire document.
-2.  Identify specific segments within the document that appear to be plagiarized. This includes direct copies, as well as cleverly paraphrased content or AI-modified text that attempts to evade simple string-matching. Pay special attention to rephrased sentences, synonym swaps, and structural changes that maintain the original meaning but alter the wording. When identifying paraphrased content, consider the context of the surrounding sentences and the overall meaning of the text. Specifically look for AI-assisted paraphrasing techniques.
-3.  For each plagiarized segment (including paraphrased ones), provide:
+2.  Identify specific segments within the document that appear to be plagiarized. This includes:
+    a.  Direct copies.
+    b.  Cleverly paraphrased content: Look for synonym swaps, sentence reordering, changes in voice or tense, and structural alterations that maintain the original meaning but alter the wording. Be especially vigilant for patterns that suggest AI-assisted paraphrasing.
+    c.  Potentially AI-generated text segments: Identify text that exhibits characteristics of AI generation, such as overly generic language, unusual sentence structures, or a style inconsistent with the rest of the document, especially if it seems to be used to disguise plagiarized ideas.
+3.  For each identified segment (direct, paraphrased, or potentially AI-generated to hide plagiarism), provide:
     a.  The exact 'snippetFromDocument' from the submitted text.
     b.  The 'sourceURL' from which the content was likely taken, if identifiable.
     c.  The 'sourceSnippet' from the identified source that matches the document snippet.'
-    d.  A 'similarityScore' (0-100) for that specific segment, indicating how similar it is to the source, considering both lexical and semantic similarity. Provide a detailed explanation of why you believe the segment is plagiarized, including specific examples of paraphrasing techniques used.
+    d.  A 'similarityScore' (0-100) for that specific segment, indicating how similar it is to the source, considering both lexical and semantic similarity. Provide a detailed explanation of why you believe the segment is plagiarized, including specific examples of paraphrasing techniques used or indicators of AI generation.
 
 When comparing the document text to the CORE metadata, pay close attention to titles, abstracts, and full texts. Consider the possibility that the document may have been derived from or inspired by existing scholarly works.
 
@@ -78,10 +82,10 @@ Your analysis should include:
 -   Comprehensive plagiarism checking across 50+ languages.
 -   Intelligent translation and cross-linguistic similarity detection where applicable.
 -   Preservation of linguistic nuances and context during analysis.
--   Advanced detection of paraphrasing, including AI-assisted modifications and AI-generated text patterns.
+-   Advanced detection of paraphrasing, including sophisticated AI-assisted modifications and AI-generated text patterns used to obscure plagiarism.
 
 Return your findings as a structured list. If no plagiarism is detected, the 'plagiarismPercentage' should be 0 and the 'findings' array should be empty.
-Do not invent sources or similarity scores if they cannot be reasonably determined.
+Do not invent sources or similarity scores if they cannot be reasonably determined. If a source is suspected but cannot be pinpointed to a URL, describe the nature of the suspected source if possible (e.g., "general web content," "common knowledge phrasing adapted").
 
 CORE Metadata: {{{coreMetadata}}}
 Document Text: {{{documentText}}}`,
@@ -119,23 +123,35 @@ const generatePlagiarismReportFlow = ai.defineFlow(
         coreMetadataString = JSON.stringify({ error: "Exception during CORE API fetch", message: error.message });
       }
     }
+    
+    try {
+      // console.log("[generatePlagiarismReportFlow] CORE Metadata being sent to AI:", coreMetadataString ? coreMetadataString.substring(0, 200) + "..." : "None");
+      // console.log("[generatePlagiarismReportFlow] Document text being sent to AI (first 200 chars):", input.documentText.substring(0,200) + "...");
+      
+      const {output, usage} = await prompt({ documentText: input.documentText, coreMetadata: coreMetadataString });
+      // console.log("[generatePlagiarismReportFlow] AI prompt usage:", usage);
+      
+      if (!output || typeof output.plagiarismPercentage !== 'number' || !Array.isArray(output.findings)) {
+        console.error("[generatePlagiarismReportFlow] Plagiarism report generation failed to produce structured output or valid fields from AI model. Output received:", output);
+        // Return a default/empty report to prevent crashes downstream
+        return {
+          plagiarismPercentage: 0,
+          findings: [],
+        };
+      }
+      // console.log("[generatePlagiarismReportFlow] AI prompt output:", JSON.stringify(output, null, 2));
+      return {
+        plagiarismPercentage: output.plagiarismPercentage,
+        findings: output.findings,
+      };
 
-    // console.log("[generatePlagiarismReportFlow] CORE Metadata being sent to AI:", coreMetadataString ? coreMetadataString.substring(0, 200) + "..." : "None");
-    
-    const { output } = await prompt({ documentText: input.documentText, coreMetadata: coreMetadataString });
-    
-    if (!output) {
-      console.error("[generatePlagiarismReportFlow] Plagiarism report generation failed to produce structured output from AI model.");
-      // Return a default/empty report to prevent crashes downstream
+    } catch (aiError: any) {
+      console.error("[generatePlagiarismReportFlow] Error during AI prompt execution:", aiError);
+      // Return a default/empty report in case of AI call failure
       return {
         plagiarismPercentage: 0,
         findings: [],
       };
     }
-    
-    return {
-      plagiarismPercentage: output.plagiarismPercentage ?? 0,
-      findings: output.findings ?? [],
-    };
   }
 );
