@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import Script from 'next/script'; // Added for Visme embed
+import Script from 'next/script';
 import { generatePlagiarismReport } from "@/ai/flows/generate-plagiarism-report";
 import { extractTextFromDocument } from "@/ai/flows/extract-text-from-document";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import { useReport, type FullReportData } from "@/context/ReportContext";
 import { useAuth } from "@/context/AuthContext";
 import type { ReportHistoryItemSummary } from "@/types/history";
 
-const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE_MB = 10; // Updated file size limit
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const MAX_HISTORY_ITEMS = 50;
 
@@ -90,19 +90,30 @@ export default function HomePage() {
         try {
           const extractionResult = await extractTextFromDocument({ documentDataUri: dataUri });
           if (extractionResult && extractionResult.extractedText) {
+             setDocumentText(extractionResult.extractedText); // Populate textarea with extracted text
             toast({
               title: "File Ready",
-              description: `${file.name} is ready to be checked.`,
+              description: `${file.name} is ready to be checked. Text has been extracted.`,
               variant: "default",
             });
           } else {
-            setError("Could not extract text or document is empty.");
+             let specificError = "Could not extract text or document is empty.";
+             if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+                 specificError += " DOCX file processing can sometimes be challenging. Consider trying a PDF version or pasting the text directly.";
+             }
+            setError(specificError);
             if (fileInputRef.current) fileInputRef.current.value = "";
             setFileName(null);
           }
         } catch (extractionError: any) {
           console.error("Text extraction error:", extractionError);
-          setError(`Failed to extract text: ${extractionError.message || "Unknown error."}`);
+          let errorMsg = `Failed to extract text: ${extractionError.message || "Unknown error."}`;
+          if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" && (extractionError.message || "").toLowerCase().includes("server component")) {
+            errorMsg = "Failed to extract text from DOCX. This can sometimes occur with complex DOCX files. Please try converting to PDF or pasting the text directly.";
+          } else if ((extractionError.message || "").toLowerCase().includes("server component")) {
+            errorMsg = "Failed to extract text due to a server-side issue. Please try again or contact support if the problem persists."
+          }
+          setError(errorMsg);
           if (fileInputRef.current) fileInputRef.current.value = "";
           setFileName(null);
         } finally {
@@ -137,11 +148,19 @@ export default function HomePage() {
       return;
     }
     
+    // If a file is selected but documentText is empty, it means extraction happened (or was supposed to happen)
+    // and documentText state should have been populated.
+    // If documentText is STILL empty, it implies extraction failed OR the document was empty.
+    // The handleFileChange logic should set an error or populate documentText.
+    // This re-extraction logic here might be redundant if handleFileChange is robust.
+    // However, keeping it as a fallback if user clears textarea after successful extraction
+    // and then clicks submit with file still selected.
+
     if (fileName && !documentText.trim()) { 
         const file = fileInputRef.current?.files?.[0];
         if (file) {
             setIsLoading(true);
-            setCurrentTask("Preparing file...");
+            setCurrentTask("Re-preparing file...");
             try {
                 const dataUri = await new Promise<string>((resolve, reject) => {
                     const reader = new FileReader();
@@ -149,15 +168,20 @@ export default function HomePage() {
                     reader.onerror = reject;
                     reader.readAsDataURL(file);
                 });
-                setCurrentTask("Extracting text...");
+                setCurrentTask("Re-extracting text...");
                 const extractionResult = await extractTextFromDocument({ documentDataUri: dataUri });
                 if (!extractionResult || !extractionResult.extractedText) {
-                    setError("Could not extract text from the selected file for checking.");
+                    let specificError = "Could not extract text from the selected file for checking.";
+                    if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+                         specificError += " DOCX file processing can be difficult. Try converting to PDF or pasting text.";
+                    }
+                    setError(specificError);
                     setIsLoading(false);
                     setCurrentTask("");
                     return;
                 }
                 textToCheck = extractionResult.extractedText;
+                setDocumentText(textToCheck); // Update state
             } catch (e: any) {
                  setError(`Error processing file for submission: ${e.message}`);
                  setIsLoading(false);
@@ -170,7 +194,7 @@ export default function HomePage() {
             setCurrentTask("");
             return;
         }
-    } else if (documentText.trim()){
+    } else if (documentText.trim() && !fileName){ // Text pasted, no file name
         docTitle = documentText.substring(0, 70) + (documentText.length > 70 ? "..." : "");
     }
 
@@ -332,6 +356,7 @@ export default function HomePage() {
           {fileName && !isLoading && (
             <p className="text-sm text-green-600 dark:text-green-400 flex items-center">
               <CheckCircle className="h-4 w-4 mr-1.5 shrink-0" /> Selected: {fileName}
+              {documentText ? ` (${documentText.split(/\s+/).filter(Boolean).length} words extracted)` : ''}
             </p>
           )}
           {isLoading && (

@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -16,11 +17,17 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'placehold.co',
+        port: '',
+        pathname: '/**',
+      }
     ],
   },
   experimental: {
     serverActions: {
-      bodySizeLimit: '2mb', // Increased for potentially large text documents for plagiarism check
+      bodySizeLimit: '15mb', // Increased for 10MB files (Base64 encoding increases size)
     },
   },
 };
