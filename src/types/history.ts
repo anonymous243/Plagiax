@@ -4,5 +4,5 @@ export interface ReportHistoryItemSummary {
   timestamp: number;
   plagiarismPercentage: number;
   documentTitle: string;
-  fileName?: string;
+  fileName?: string; // Ensure fileName is part of the type
 }

@@ -59,9 +59,9 @@ export default function DashboardPage() {
   }
   
   const getBadgeVariant = (percentage: number): "destructive" | "secondary" | "default" => {
-    if (percentage > 50) return "destructive";
-    if (percentage > 5) return "secondary"; // Consider 5% as threshold for "some" plagiarism
-    return "default"; // Green for low/no plagiarism
+    if (percentage > 50) return "destructive"; // High plagiarism - red
+    if (percentage > 10) return "secondary"; // Moderate plagiarism - yellow/orange (using secondary)
+    return "default"; // Low plagiarism - green (using primary/default which is orange, adjust if needed)
   };
 
 

@@ -142,6 +142,7 @@ export default function HomePage() {
   const handleSubmit = async () => {
     let textToCheck = documentText;
     let docTitle = fileName || "Pasted Text";
+    let currentFileName = fileName; // Keep track of the actual file name for history
 
     if (!fileName && !documentText.trim()) {
       setError("Please paste text or upload a document to check.");
@@ -153,6 +154,7 @@ export default function HomePage() {
         if (file) {
             setIsLoading(true);
             setCurrentTask("Re-preparing file...");
+            currentFileName = file.name; // Update currentFileName
             try {
                 const dataUri = await new Promise<string>((resolve, reject) => {
                     const reader = new FileReader();
@@ -188,6 +190,7 @@ export default function HomePage() {
         }
     } else if (documentText.trim() && !fileName){ 
         docTitle = documentText.substring(0, 70) + (documentText.length > 70 ? "..." : "");
+        currentFileName = null; // No actual file if text is pasted
     }
 
 
@@ -225,7 +228,7 @@ export default function HomePage() {
           timestamp: submissionTimestamp,
           plagiarismPercentage: aiReport.plagiarismPercentage,
           documentTitle: docTitle,
-          fileName: fileName || undefined,
+          fileName: currentFileName || undefined, // Use currentFileName for history
         };
         try {
           const historyKey = `plagiax_history_${currentUser.email}`;
