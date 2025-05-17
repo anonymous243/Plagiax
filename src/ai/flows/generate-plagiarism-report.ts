@@ -1,7 +1,7 @@
 
 'use server';
 
-import { ai } from '../genkit';
+import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import fetch from 'node-fetch'; // Ensure this is node-fetch v2 for CommonJS compatibility if not using ESM
 
@@ -161,3 +161,4 @@ const generatePlagiarismReportFlow = ai.defineFlow(
 // Explicit type-only exports
 export type { _GeneratePlagiarismReportInput as GeneratePlagiarismReportInput };
 export type { _GeneratePlagiarismReportOutput as GeneratePlagiarismReportOutput };
+

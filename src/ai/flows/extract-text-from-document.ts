@@ -8,7 +8,7 @@
  * - ExtractTextFromDocumentOutput - The return type for the extractTextFromDocument function.
  */
 
-import {ai} from '../genkit';
+import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const ExtractTextFromDocumentInputSchema = z.object({
@@ -98,3 +98,4 @@ const extractTextFromDocumentFlow = ai.defineFlow(
 // Explicit type-only exports
 export type { _ExtractTextFromDocumentInput as ExtractTextFromDocumentInput };
 export type { _ExtractTextFromDocumentOutput as ExtractTextFromDocumentOutput };
+
