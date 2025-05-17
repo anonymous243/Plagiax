@@ -14,7 +14,8 @@ const GeneratePlagiarismReportInputSchema = z.object({
     .optional()
     .describe('Metadata from the CORE API.'),
 });
-export type GeneratePlagiarismReportInput = z.infer<typeof GeneratePlagiarismReportInputSchema>;
+// Internal type alias
+type _GeneratePlagiarismReportInput = z.infer<typeof GeneratePlagiarismReportInputSchema>;
 
 const PlagiarizedSegmentSchema = z.object({
   snippetFromDocument: z
@@ -51,11 +52,12 @@ const GeneratePlagiarismReportOutputSchema = z.object({
       'A detailed list of plagiarized snippets, their potential sources, and similarity scores. If no plagiarism is detected, this should be an empty array.'
     ),
 });
-export type GeneratePlagiarismReportOutput = z.infer<typeof GeneratePlagiarismReportOutputSchema>;
+// Internal type alias
+type _GeneratePlagiarismReportOutput = z.infer<typeof GeneratePlagiarismReportOutputSchema>;
 
 export async function generatePlagiarismReport(
-  input: GeneratePlagiarismReportInput
-): Promise<GeneratePlagiarismReportOutput> {
+  input: _GeneratePlagiarismReportInput
+): Promise<_GeneratePlagiarismReportOutput> {
   return generatePlagiarismReportFlow(input);
 }
 
@@ -84,7 +86,7 @@ Your analysis should include:
 -   Preservation of linguistic nuances and context during analysis.
 -   Advanced detection of paraphrasing, including sophisticated AI-assisted modifications and AI-generated text patterns used to obscure plagiarism.
 
-Return your findings as a structured list. If no plagiarism is detected, the 'plagiarismPercentage' should be 0 and the 'findings' array should be empty.
+Return your findings as a structured list. If no plagiarism is detected, the 'plagiarismPercentage' should be 0 and the 'findings' array should be an empty array.
 Do not invent sources or similarity scores if they cannot be reasonably determined. If a source is suspected but cannot be pinpointed to a URL, describe the nature of the suspected source if possible (e.g., "general web content," "common knowledge phrasing adapted").
 
 CORE Metadata: {{{coreMetadata}}}
@@ -97,7 +99,7 @@ const generatePlagiarismReportFlow = ai.defineFlow(
     inputSchema: GeneratePlagiarismReportInputSchema,
     outputSchema: GeneratePlagiarismReportOutputSchema,
   },
-  async (input: GeneratePlagiarismReportInput): Promise<GeneratePlagiarismReportOutput> => {
+  async (input: _GeneratePlagiarismReportInput): Promise<_GeneratePlagiarismReportOutput> => {
     let coreMetadataString = input.coreMetadata;
 
     if (!coreMetadataString) {
@@ -155,3 +157,7 @@ const generatePlagiarismReportFlow = ai.defineFlow(
     }
   }
 );
+
+// Explicit type-only exports
+export type { _GeneratePlagiarismReportInput as GeneratePlagiarismReportInput };
+export type { _GeneratePlagiarismReportOutput as GeneratePlagiarismReportOutput };

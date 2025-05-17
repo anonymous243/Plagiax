@@ -18,16 +18,18 @@ const ExtractTextFromDocumentInputSchema = z.object({
       "The document file (e.g., DOCX or PDF) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
 });
-export type ExtractTextFromDocumentInput = z.infer<typeof ExtractTextFromDocumentInputSchema>;
+// Internal type alias
+type _ExtractTextFromDocumentInput = z.infer<typeof ExtractTextFromDocumentInputSchema>;
 
 const ExtractTextFromDocumentOutputSchema = z.object({
   extractedText: z.string().describe('The extracted text content from the document body.'),
 });
-export type ExtractTextFromDocumentOutput = z.infer<typeof ExtractTextFromDocumentOutputSchema>;
+// Internal type alias
+type _ExtractTextFromDocumentOutput = z.infer<typeof ExtractTextFromDocumentOutputSchema>;
 
 export async function extractTextFromDocument(
-  input: ExtractTextFromDocumentInput
-): Promise<ExtractTextFromDocumentOutput> {
+  input: _ExtractTextFromDocumentInput
+): Promise<_ExtractTextFromDocumentOutput> {
   try {
     // console.log(`[extractTextFromDocument] Received input for documentDataUri starting with: ${input.documentDataUri.substring(0,100)}`);
     const result = await extractTextFromDocumentFlow(input);
@@ -65,8 +67,7 @@ Execute this extraction with maximum speed and efficiency. The extracted text wi
 
 Document: {{media url=documentDataUri}}
 
-Return ONLY the extracted text from the document's main body. If the document's main body is empty or contains no readable text, return an empty string for the 'extractedText' field. Do not add any commentary, preamble, or explanation other than the extracted main body text itself. The output must be solely the content of the 'extractedText' field in the JSON format specified.
-Output format MUST be a JSON object with a single key "extractedText" whose value is the extracted string. Example: {"extractedText": "This is the extracted content..."}
+Return ONLY the extracted text from the document's main body. If the document's main body is empty or contains no readable text, return an empty string for the 'extractedText' field. Do not add any commentary, preamble, or explanation other than the extracted main body text itself. The output must be solely the content of the 'extractedText' field in the JSON format specified. Example: {"extractedText": "This is the extracted content..."}
 `,
 });
 
@@ -94,3 +95,6 @@ const extractTextFromDocumentFlow = ai.defineFlow(
   }
 );
 
+// Explicit type-only exports
+export type { _ExtractTextFromDocumentInput as ExtractTextFromDocumentInput };
+export type { _ExtractTextFromDocumentOutput as ExtractTextFromDocumentOutput };
