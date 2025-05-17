@@ -14,6 +14,16 @@ import type { ReportHistoryItemSummary } from '@/types/history';
 import { format } from 'date-fns';
 import Link from 'next/link';
 
+const isValidHistoryItem = (item: any): item is ReportHistoryItemSummary => {
+  return (
+    item &&
+    typeof item.id === 'string' &&
+    typeof item.timestamp === 'number' &&
+    typeof item.plagiarismPercentage === 'number' &&
+    typeof item.documentTitle === 'string' &&
+    (typeof item.fileName === 'string' || typeof item.fileName === 'undefined')
+  );
+};
 
 export default function DashboardPage() {
   const { isAuthenticated, currentUser, isLoading: authIsLoading } = useAuth();
@@ -32,14 +42,20 @@ export default function DashboardPage() {
       setIsLoadingHistory(true);
       try {
         const historyKey = `plagiax_history_${currentUser.email}`;
-        const storedHistory = localStorage.getItem(historyKey);
-        if (storedHistory) {
-          setHistory(JSON.parse(storedHistory));
+        const storedHistoryString = localStorage.getItem(historyKey);
+        if (storedHistoryString) {
+          const parsedHistory = JSON.parse(storedHistoryString);
+          if (Array.isArray(parsedHistory)) {
+            const validHistory = parsedHistory.filter(isValidHistoryItem);
+            setHistory(validHistory.sort((a, b) => b.timestamp - a.timestamp)); // Sort by newest first
+          } else {
+            setHistory([]);
+          }
         } else {
-          setHistory([]); // Ensure history is an empty array if nothing is stored
+          setHistory([]); 
         }
       } catch (error) {
-        console.error("Failed to load history from localStorage:", error);
+        console.error("Failed to load or parse history from localStorage:", error);
         setHistory([]); 
       } finally {
         setIsLoadingHistory(false);
@@ -59,9 +75,9 @@ export default function DashboardPage() {
   }
   
   const getBadgeVariant = (percentage: number): "destructive" | "secondary" | "default" => {
-    if (percentage > 50) return "destructive"; // High plagiarism - red
-    if (percentage > 10) return "secondary"; // Moderate plagiarism - yellow/orange (using secondary)
-    return "default"; // Low plagiarism - green (using primary/default which is orange, adjust if needed)
+    if (percentage > 50) return "destructive"; 
+    if (percentage > 10) return "secondary"; 
+    return "default"; 
   };
 
 

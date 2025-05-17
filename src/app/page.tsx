@@ -8,15 +8,16 @@ import { generatePlagiarismReport } from "@/ai/flows/generate-plagiarism-report"
 import { extractTextFromDocument } from "@/ai/flows/extract-text-from-document";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input"; // Import Input
 import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/ui/spinner";
-import { AlertCircle, CheckCircle, CloudUpload, Send, ChevronsRight } from "lucide-react";
+import { AlertCircle, CheckCircle, CloudUpload, Send, ChevronsRight, FileText } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useReport, type FullReportData } from "@/context/ReportContext";
 import { useAuth } from "@/context/AuthContext";
 import type { ReportHistoryItemSummary } from "@/types/history";
 
-const MAX_FILE_SIZE_MB = 10; // Updated file size limit
+const MAX_FILE_SIZE_MB = 10;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const MAX_HISTORY_ITEMS = 50;
 
@@ -24,6 +25,7 @@ export default function HomePage() {
   const { isAuthenticated, currentUser, isLoading: authIsLoading } = useAuth();
   const router = useRouter();
   
+  const [documentTitleInput, setDocumentTitleInput] = React.useState<string>(""); // State for title input
   const [documentText, setDocumentText] = React.useState<string>("");
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [currentTask, setCurrentTask] = React.useState<string>(""); 
@@ -69,6 +71,9 @@ export default function HomePage() {
     setIsLoading(true);
     setCurrentTask("Reading file...");
     setFileName(file.name);
+    if (!documentTitleInput && file.name) { // Auto-fill title if empty and file selected
+        setDocumentTitleInput(file.name.split('.').slice(0, -1).join('.')); // Use filename without extension
+    }
     setDocumentText(""); 
 
     try {
@@ -90,7 +95,7 @@ export default function HomePage() {
         try {
           const extractionResult = await extractTextFromDocument({ documentDataUri: dataUri });
           if (extractionResult && extractionResult.extractedText) {
-             setDocumentText(extractionResult.extractedText); // Populate textarea with extracted text
+             setDocumentText(extractionResult.extractedText); 
             toast({
               title: "File Ready",
               description: `${file.name} is ready to be checked. Text has been extracted.`,
@@ -141,8 +146,8 @@ export default function HomePage() {
 
   const handleSubmit = async () => {
     let textToCheck = documentText;
-    let docTitle = fileName || "Pasted Text";
-    let currentFileName = fileName; // Keep track of the actual file name for history
+    let docTitleForReport = documentTitleInput.trim();
+    let currentFileNameForHistory = fileName; 
 
     if (!fileName && !documentText.trim()) {
       setError("Please paste text or upload a document to check.");
@@ -154,7 +159,10 @@ export default function HomePage() {
         if (file) {
             setIsLoading(true);
             setCurrentTask("Re-preparing file...");
-            currentFileName = file.name; // Update currentFileName
+            currentFileNameForHistory = file.name; 
+            if (!docTitleForReport) { // If user didn't input title, use filename
+                 docTitleForReport = file.name.split('.').slice(0, -1).join('.') || "Uploaded Document";
+            }
             try {
                 const dataUri = await new Promise<string>((resolve, reject) => {
                     const reader = new FileReader();
@@ -175,7 +183,7 @@ export default function HomePage() {
                     return;
                 }
                 textToCheck = extractionResult.extractedText;
-                setDocumentText(textToCheck); // Update state
+                setDocumentText(textToCheck); 
             } catch (e: any) {
                  setError(`Error processing file for submission: ${e.message}`);
                  setIsLoading(false);
@@ -189,8 +197,12 @@ export default function HomePage() {
             return;
         }
     } else if (documentText.trim() && !fileName){ 
-        docTitle = documentText.substring(0, 70) + (documentText.length > 70 ? "..." : "");
-        currentFileName = null; // No actual file if text is pasted
+        if (!docTitleForReport) { // If user didn't input title, use text snippet
+            docTitleForReport = textToCheck.substring(0, 70) + (textToCheck.length > 70 ? "..." : "") || "Pasted Text";
+        }
+        currentFileNameForHistory = null; 
+    } else if (fileName && documentText.trim() && !docTitleForReport) { // File selected and text pasted, but no title input
+        docTitleForReport = fileName.split('.').slice(0, -1).join('.') || "Uploaded Document";
     }
 
 
@@ -199,6 +211,9 @@ export default function HomePage() {
         setIsLoading(false);
         setCurrentTask("");
         return;
+    }
+    if (!docTitleForReport) { // Final fallback for title
+        docTitleForReport = "Untitled Document";
     }
 
 
@@ -215,7 +230,7 @@ export default function HomePage() {
       
       const fullReportData: FullReportData = {
         aiOutput: aiReport,
-        documentTitle: docTitle,
+        documentTitle: docTitleForReport,
         documentTextContent: textToCheck,
         submissionTimestamp: submissionTimestamp,
         submissionId: submissionId,
@@ -227,8 +242,8 @@ export default function HomePage() {
           id: submissionId,
           timestamp: submissionTimestamp,
           plagiarismPercentage: aiReport.plagiarismPercentage,
-          documentTitle: docTitle,
-          fileName: currentFileName || undefined, // Use currentFileName for history
+          documentTitle: docTitleForReport,
+          fileName: currentFileNameForHistory || undefined, 
         };
         try {
           const historyKey = `plagiax_history_${currentUser.email}`;
@@ -300,6 +315,22 @@ export default function HomePage() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+
+          <div className="space-y-2">
+            <label htmlFor="document-title-input" className="text-sm font-medium text-foreground flex items-center">
+              <FileText className="mr-2 h-4 w-4 text-primary" />
+              Document Title (Optional)
+            </label>
+            <Input
+              id="document-title-input"
+              type="text"
+              placeholder="Enter a title for your document..."
+              value={documentTitleInput}
+              onChange={(e) => setDocumentTitleInput(e.target.value)}
+              className="rounded-lg text-base focus:ring-primary/80 border-input"
+              disabled={isLoading}
+            />
+          </div>
           
           <Textarea
             id="text-input"
@@ -308,6 +339,15 @@ export default function HomePage() {
             onChange={(e) => {
               setDocumentText(e.target.value);
               if (e.target.value && fileName) { 
+                // If user starts pasting text after selecting a file,
+                // and no title was manually input, clear the filename-derived title.
+                // If a title was manually input, keep it.
+                if(!documentTitleInput && fileName === (documentTitleInput + (fileName.includes('.') ? fileName.substring(fileName.lastIndexOf('.')) : ''))){
+                    // This condition is tricky. Let's simplify: if text is pasted, and file was source of title, clear title.
+                    // A better UX might be to explicitly show "File: X" and "Title: Y" separately.
+                    // For now, if text is pasted, we prioritize manually entered title or pasted content snippet later.
+                }
+                // To prevent confusion, let's clear fileName if user starts typing directly
                 setFileName(null);
                 if(fileInputRef.current) fileInputRef.current.value = "";
               }

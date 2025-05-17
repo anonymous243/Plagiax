@@ -25,13 +25,24 @@ interface AnalyticsData {
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--muted))', '#82ca9d', '#ffc658'];
 
-
 const getFileExtension = (filename?: string): string | null => {
   if (!filename) return null;
   const lastDot = filename.lastIndexOf(".");
-  if (lastDot === -1 || lastDot === filename.length - 1) return null; // No extension or dot is last char
+  if (lastDot === -1 || lastDot === filename.length - 1) return null; 
   return filename.slice(lastDot + 1).toLowerCase();
 };
+
+const isValidHistoryItem = (item: any): item is ReportHistoryItemSummary => {
+  return (
+    item &&
+    typeof item.id === 'string' &&
+    typeof item.timestamp === 'number' &&
+    typeof item.plagiarismPercentage === 'number' &&
+    typeof item.documentTitle === 'string' &&
+    (typeof item.fileName === 'string' || typeof item.fileName === 'undefined')
+  );
+};
+
 
 export default function AnalyticsPage() {
   const { isAuthenticated, currentUser, isLoading: authIsLoading } = useAuth();
@@ -51,7 +62,14 @@ export default function AnalyticsPage() {
       try {
         const historyKey = `plagiax_history_${currentUser.email}`;
         const storedHistoryString = localStorage.getItem(historyKey);
-        const history: ReportHistoryItemSummary[] = storedHistoryString ? JSON.parse(storedHistoryString) : [];
+        let history: ReportHistoryItemSummary[] = [];
+
+        if (storedHistoryString) {
+            const parsedHistory = JSON.parse(storedHistoryString);
+            if (Array.isArray(parsedHistory)) {
+                history = parsedHistory.filter(isValidHistoryItem);
+            }
+        }
 
         if (history.length === 0) {
           setAnalyticsData({ totalChecks: 0, averageSimilarity: 0, documentTypeDistribution: [] });
@@ -91,8 +109,14 @@ export default function AnalyticsPage() {
         setIsLoadingAnalytics(false);
       }
     } else if (!authIsLoading && !isAuthenticated) {
-      setAnalyticsData(null);
+      setAnalyticsData(null); // Clear data if not authenticated
       setIsLoadingAnalytics(false);
+    } else if (authIsLoading) {
+        // Still loading auth, do nothing until it resolves
+    } else {
+        // Default case, e.g. currentUser is null but was authenticated (shouldn't happen with current auth logic)
+        setAnalyticsData({ totalChecks: 0, averageSimilarity: 0, documentTypeDistribution: [] });
+        setIsLoadingAnalytics(false);
     }
   }, [currentUser, isAuthenticated, authIsLoading]);
 
@@ -108,7 +132,7 @@ export default function AnalyticsPage() {
     config[item.name] = { label: item.name, color: item.fill };
     return config;
   }, {} as ChartConfig) ?? {};
-   // Add a 'count' key for BarChart if needed, or adjust dataKey
+  
   if (analyticsData?.documentTypeDistribution.length) {
     chartConfig.value = { label: "Count", color: "hsl(var(--primary))" };
   }
@@ -175,7 +199,7 @@ export default function AnalyticsPage() {
         <Card className="shadow-lg rounded-xl">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <FilePieChart className="h-6 w-6 text-primary" />
+              <AnalyticsIcon className="h-6 w-6 text-primary" />
               <CardTitle className="text-xl">Document Type Distribution (Bar)</CardTitle>
             </div>
             <CardDescription>Breakdown of checked document and text types.</CardDescription>
@@ -183,7 +207,7 @@ export default function AnalyticsPage() {
           <CardContent className="h-[350px] w-full">
            <ChartContainer config={chartConfig} className="h-full w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analyticsData.documentTypeDistribution} layout="vertical" margin={{ right: 20, left: 30 }}>
+                <BarChart data={analyticsData.documentTypeDistribution} layout="vertical" margin={{ right: 20, left: 30, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" />
                   <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 12 }} interval={0} />
@@ -224,6 +248,8 @@ export default function AnalyticsPage() {
                                   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
                                   const x = cx + radius * Math.cos(-midAngle * RADIAN);
                                   const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                  // Only show label if percent is significant enough (e.g., > 5%)
+                                  if (percent * 100 < 5) return null;
                                   return (
                                     <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="10px">
                                       {`${name} (${(percent * 100).toFixed(0)}%)`}
