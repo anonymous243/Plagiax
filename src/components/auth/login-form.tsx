@@ -54,12 +54,9 @@ export function LoginForm() {
       });
       // AuthContext handles redirection to '/'
     } catch (error: any) {
-      console.error("Firebase Login error:", error);
-      let errorMessage = "An unexpected error occurred during sign in.";
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        errorMessage = "Invalid email or password. Please try again or sign up if you don't have an account.";
-      }
-      setLoginError(errorMessage);
+      console.error("Login error:", error);
+      let errorMessage = error.message || "An unexpected error occurred during sign in.";
+      setLoginError(errorMessage); // Use the error message from AuthContext
       toast({
         title: "Sign In Failed",
         description: errorMessage,

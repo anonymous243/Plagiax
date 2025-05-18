@@ -4,21 +4,13 @@
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { 
-  getAuth, 
-  onAuthStateChanged, 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signOut,
-  updateProfile,
-  type User as FirebaseUser 
-} from "firebase/auth";
-import { auth as firebaseAuth } from '@/lib/firebase'; // Import your Firebase auth instance
 
+// Simplified User interface for localStorage
 interface User {
-  uid: string;
-  fullName: string | null;
-  email: string | null;
+  id: string;
+  fullName: string;
+  email: string;
+  passwordHash: string; // Store a "hashed" password (in a real app, never store plain passwords)
 }
 
 interface AuthContextType {
@@ -31,7 +23,16 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const LOCAL_STORAGE_USERS_KEY = 'plagiax_users';
+const LOCAL_STORAGE_CURRENT_USER_KEY = 'plagiax_current_user';
 const COOKIE_CONSENT_NAME = 'plagiax_cookie_consent';
+
+// Basic "hashing" for prototype purposes - DO NOT USE IN PRODUCTION
+const simpleHash = (password: string): string => {
+  // This is NOT a secure hash. For demonstration only.
+  // In a real app, use libraries like bcrypt or Argon2 on the server.
+  return `hashed_${password}_salted_demo`;
+};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -40,20 +41,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(firebaseAuth, (firebaseUser: FirebaseUser | null) => {
-      if (firebaseUser) {
-        setCurrentUser({ 
-          uid: firebaseUser.uid,
-          email: firebaseUser.email, 
-          fullName: firebaseUser.displayName 
-        });
-      } else {
-        setCurrentUser(null);
+    // Load current user from localStorage on initial mount
+    try {
+      const storedUserString = localStorage.getItem(LOCAL_STORAGE_CURRENT_USER_KEY);
+      if (storedUserString) {
+        const storedUser = JSON.parse(storedUserString) as User;
+        setCurrentUser(storedUser);
       }
-      setIsLoading(false);
-    });
-
-    return () => unsubscribe();
+    } catch (error) {
+      console.error("Failed to parse current user from localStorage:", error);
+      localStorage.removeItem(LOCAL_STORAGE_CURRENT_USER_KEY);
+    }
+    setIsLoading(false);
   }, []);
 
   const isAuthenticated = !!currentUser && !isLoading;
@@ -71,40 +70,65 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [isLoading, isAuthenticated, pathname, router]);
 
-  const login = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(firebaseAuth, email, password);
-    // onAuthStateChanged will handle setting currentUser and redirecting
-    // Set cookie consent
-    if (typeof window !== 'undefined') {
-      const consentCookie = document.cookie
-        .split('; ')
-        .find(row => row.startsWith(`${COOKIE_CONSENT_NAME}=`));
-      if (!consentCookie) {
-        const date = new Date();
-        date.setTime(date.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
-        const expires = "expires=" + date.toUTCString();
-        document.cookie = `${COOKIE_CONSENT_NAME}=true; ${expires}; path=/; SameSite=Lax`;
-      }
+  const getUsersFromStorage = (): User[] => {
+    try {
+      const usersString = localStorage.getItem(LOCAL_STORAGE_USERS_KEY);
+      return usersString ? JSON.parse(usersString) : [];
+    } catch (error) {
+      console.error("Failed to parse users from localStorage:", error);
+      return [];
     }
-    router.push('/'); // Explicit redirect after successful login
+  };
+
+  const saveUsersToStorage = (users: User[]) => {
+    localStorage.setItem(LOCAL_STORAGE_USERS_KEY, JSON.stringify(users));
+  };
+
+  const login = async (email: string, password: string) => {
+    const users = getUsersFromStorage();
+    const user = users.find(u => u.email === email);
+    const passwordHash = simpleHash(password);
+
+    if (user && user.passwordHash === passwordHash) {
+      setCurrentUser(user);
+      localStorage.setItem(LOCAL_STORAGE_CURRENT_USER_KEY, JSON.stringify(user));
+      // Set cookie consent
+      if (typeof window !== 'undefined') {
+        const consentCookie = document.cookie
+          .split('; ')
+          .find(row => row.startsWith(`${COOKIE_CONSENT_NAME}=`));
+        if (!consentCookie) {
+          const date = new Date();
+          date.setTime(date.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
+          const expires = "expires=" + date.toUTCString();
+          document.cookie = `${COOKIE_CONSENT_NAME}=true; ${expires}; path=/; SameSite=Lax`;
+        }
+      }
+      router.push('/');
+    } else {
+      throw new Error("Invalid email or password."); // More specific error for login form
+    }
   };
 
   const signup = async (email: string, password: string, fullName: string) => {
-    const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
-    await updateProfile(userCredential.user, { displayName: fullName });
-    // onAuthStateChanged will handle setting currentUser, but for immediate UI update:
-     setCurrentUser({
-      uid: userCredential.user.uid,
-      email: userCredential.user.email,
-      fullName: fullName,
-    });
-    // No automatic login after signup, user should go to login page
-    // router.push('/login'); // This was changed based on previous requests
+    const users = getUsersFromStorage();
+    if (users.find(u => u.email === email)) {
+      throw new Error("Email already in use.");
+    }
+    const newUser: User = {
+      id: Date.now().toString(), // Simple ID generation
+      fullName,
+      email,
+      passwordHash: simpleHash(password),
+    };
+    saveUsersToStorage([...users, newUser]);
+    // Do not automatically log in, redirect to login page
+    router.push('/login');
   };
 
   const logout = async () => {
-    await signOut(firebaseAuth);
-    // onAuthStateChanged will handle setting currentUser to null
+    setCurrentUser(null);
+    localStorage.removeItem(LOCAL_STORAGE_CURRENT_USER_KEY);
     router.push('/login'); 
   };
 

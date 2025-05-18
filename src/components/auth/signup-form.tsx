@@ -65,15 +65,10 @@ export function SignupForm() {
         title: "Account Created!",
         description: "Please sign in with your new credentials.",
       });
-      router.push('/login'); 
+      // router.push('/login'); // AuthContext now handles redirect to login after signup
     } catch (error: any) {
-      console.error("Firebase Signup error:", error);
-      let errorMessage = "An unexpected error occurred. Please try again.";
-      if (error.code === 'auth/email-already-in-use') {
-        errorMessage = "This email is already in use. Please try signing in or use a different email.";
-      } else if (error.code === 'auth/weak-password') {
-        errorMessage = "The password is too weak. Please choose a stronger password.";
-      }
+      console.error("Signup error:", error);
+      let errorMessage = error.message || "An unexpected error occurred. Please try again.";
       setSignupError(errorMessage);
       toast({
         title: "Signup Failed",
