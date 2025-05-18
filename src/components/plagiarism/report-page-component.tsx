@@ -5,7 +5,7 @@ import type { FullReportData } from "@/context/ReportContext";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileSearch, Mail, FileText, CalendarDays, Percent, User, Fingerprint, FileType, Library, Globe, University, LinkIcon, ExternalLink, QrCode, Download, Printer } from "lucide-react";
+import { FileSearch, Mail, FileText, CalendarDays, Percent, User, Fingerprint, FileType, Library, Globe, University, LinkIcon, ExternalLink, QrCode, Printer } from "lucide-react";
 import { Languages } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import * as React from "react";
@@ -26,7 +26,7 @@ const getGrade = (percentage: number): string => {
 };
 
 const getDomain = (url?: string): string => {
-  if (!url || url.trim() === "" || !url.includes("://")) {
+  if (!url || !url.trim() || !url.includes("://")) {
     return "N/A"; 
   }
   try {
@@ -146,14 +146,17 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
   };
 
   const handlePrintOrSavePdf = () => {
+    // Call window.print() first.
+    // The print dialog is typically modal and will block further JS execution
+    // on the main thread until it's dismissed.
+    window.print();
+
+    // This toast will likely appear *after* the user interacts with the print dialog.
     toast({
-      title: "Preparing Report",
-      description: "Your browser's print dialog will open. You can save as PDF from there.",
+      title: "Print Dialog Opened",
+      description: "Use your browser's print options to 'Save as PDF'. If you saved, check your downloads.",
       variant: "default",
     });
-    setTimeout(() => {
-      window.print();
-    }, 100); // Short delay to ensure toast appears before print dialog freezes UI
   };
 
   return (
@@ -171,10 +174,20 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
             left: 0;
             top: 0;
             width: 100%;
+            margin: 0;
+            padding: 0;
+            border: none;
+            box-shadow: none;
           }
           .no-print {
             display: none !important;
           }
+          /* Ensure card content is styled for print */
+          .printable-area .text-primary { color: #000 !important; } /* Example: make primary text black for print */
+          .printable-area .text-destructive { color: #D00 !important; } /* Example: make destructive text a dark red */
+          .printable-area .bg-primary\\/10 { background-color: transparent !important; }
+          .printable-area .shadow-sm, .printable-area .shadow-2xl, .printable-area .shadow-lg { box-shadow: none !important; }
+          .printable-area .border { border: 1px solid #ccc !important; }
         }
       `}</style>
       <Card className="w-full max-w-4xl shadow-2xl rounded-xl overflow-hidden printable-area">
@@ -344,3 +357,5 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
     </div>
   );
 }
+
+
