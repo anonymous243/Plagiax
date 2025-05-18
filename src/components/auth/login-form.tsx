@@ -29,7 +29,7 @@ const formSchema = z.object({
 });
 
 export function LoginForm() {
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [loginError, setLoginError] = React.useState<string | null>(null);
   const { toast } = useToast();
   const { login, isLoading: authIsLoading } = useAuth();
@@ -43,59 +43,30 @@ export function LoginForm() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true);
+    setIsSubmitting(true);
     setLoginError(null);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
     try {
-      const storedUsersString = localStorage.getItem('plagiax_users');
-      const storedUsers = storedUsersString ? JSON.parse(storedUsersString) : [];
-      
-      const user = storedUsers.find((u: any) => u.email === values.email);
-
-      if (!user) {
-        const errorMsg = "No account found with this email. Please sign up.";
-        setLoginError(errorMsg);
-        toast({
-          title: "Sign In Failed",
-          description: errorMsg,
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      if (user.password !== values.password) {
-        const errorMsg = "Incorrect password. Please try again.";
-        setLoginError(errorMsg);
-        toast({
-          title: "Sign In Failed",
-          description: errorMsg,
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-      
+      await login(values.email, values.password);
       toast({
         title: "Sign In Successful!",
         description: "You're now being redirected to the plagiarism checker.",
       });
-      login(user.email, user.fullName); 
-      
-    } catch (error) {
-      console.error("Login error:", error);
-      const errorMsg = "An unexpected error occurred during sign in.";
-      setLoginError(errorMsg);
+      // AuthContext handles redirection to '/'
+    } catch (error: any) {
+      console.error("Firebase Login error:", error);
+      let errorMessage = "An unexpected error occurred during sign in.";
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        errorMessage = "Invalid email or password. Please try again or sign up if you don't have an account.";
+      }
+      setLoginError(errorMessage);
       toast({
         title: "Sign In Failed",
-        description: errorMsg,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   }
 
@@ -125,7 +96,7 @@ export function LoginForm() {
                       placeholder="you@example.com"
                       {...field}
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading || authIsLoading}
+                      disabled={isSubmitting || authIsLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -144,7 +115,7 @@ export function LoginForm() {
                       placeholder="••••••••"
                       {...field}
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading || authIsLoading}
+                      disabled={isSubmitting || authIsLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -158,9 +129,9 @@ export function LoginForm() {
                 <AlertDescription>{loginError}</AlertDescription>
               </Alert>
             )}
-            <Button type="submit" className="w-full text-lg py-6 rounded-lg" disabled={isLoading || authIsLoading}>
-              {isLoading ? <Spinner className="mr-2 h-5 w-5" /> : <LogIn className="mr-2 h-5 w-5" /> }
-              {isLoading ? "Signing In..." : "Sign In"}
+            <Button type="submit" className="w-full text-lg py-6 rounded-lg" disabled={isSubmitting || authIsLoading}>
+              {isSubmitting || authIsLoading ? <Spinner className="mr-2 h-5 w-5" /> : <LogIn className="mr-2 h-5 w-5" /> }
+              {isSubmitting || authIsLoading ? "Signing In..." : "Sign In"}
             </Button>
           </form>
         </Form>

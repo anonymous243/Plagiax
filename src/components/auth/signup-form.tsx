@@ -38,11 +38,11 @@ const formSchema = z.object({
 });
 
 export function SignupForm() {
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [signupError, setSignupError] = React.useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
-  const { isLoading: authIsLoading } = useAuth(); 
+  const { signup, isLoading: authIsLoading } = useAuth(); 
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -56,48 +56,34 @@ export function SignupForm() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true);
+    setIsSubmitting(true);
     setSignupError(null);
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-
+    
     try {
-      const storedUsersString = localStorage.getItem('plagiax_users');
-      let storedUsers = storedUsersString ? JSON.parse(storedUsersString) : [];
-
-      if (storedUsers.find((u: any) => u.email === values.email)) {
-        const errorMsg = "An account with this email already exists. Please try signing in.";
-        setSignupError(errorMsg);
-        toast({
-          title: "Signup Failed",
-          description: errorMsg,
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      storedUsers.push({ email: values.email, password: values.password, fullName: values.fullName });
-      localStorage.setItem('plagiax_users', JSON.stringify(storedUsers));
-
+      await signup(values.email, values.password, values.fullName);
       toast({
         title: "Account Created!",
-        description: "You will now be redirected to the sign-in page.",
+        description: "Please sign in with your new credentials.",
       });
       router.push('/login'); 
-    } catch (error) {
-      console.error("Signup error:", error);
-      const errorMsg = "An unexpected error occurred. Please try again.";
-      setSignupError(errorMsg);
+    } catch (error: any) {
+      console.error("Firebase Signup error:", error);
+      let errorMessage = "An unexpected error occurred. Please try again.";
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = "This email is already in use. Please try signing in or use a different email.";
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = "The password is too weak. Please choose a stronger password.";
+      }
+      setSignupError(errorMessage);
       toast({
         title: "Signup Failed",
-        description: errorMsg,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   }
-
 
   return (
     <Card className="w-full max-w-md shadow-xl rounded-xl bg-card/70 backdrop-blur-md border border-border/30">
@@ -124,7 +110,7 @@ export function SignupForm() {
                       placeholder="John Doe"
                       {...field}
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading || authIsLoading}
+                      disabled={isSubmitting || authIsLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -143,7 +129,7 @@ export function SignupForm() {
                       placeholder="you@example.com"
                       {...field}
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading || authIsLoading}
+                      disabled={isSubmitting || authIsLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -162,7 +148,7 @@ export function SignupForm() {
                       placeholder="•••••••• (min. 8 characters)"
                       {...field}
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading || authIsLoading}
+                      disabled={isSubmitting || authIsLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -181,7 +167,7 @@ export function SignupForm() {
                       placeholder="••••••••"
                       {...field}
                       className="text-base py-5 rounded-lg"
-                      disabled={isLoading || authIsLoading}
+                      disabled={isSubmitting || authIsLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -197,7 +183,7 @@ export function SignupForm() {
                     <Checkbox
                       checked={field.value}
                       onCheckedChange={field.onChange}
-                      disabled={isLoading || authIsLoading}
+                      disabled={isSubmitting || authIsLoading}
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
@@ -220,9 +206,9 @@ export function SignupForm() {
                 <AlertDescription>{signupError}</AlertDescription>
               </Alert>
             )}
-            <Button type="submit" className="w-full text-lg py-6 rounded-lg" disabled={isLoading || authIsLoading}>
-              {isLoading ? <Spinner className="mr-2 h-5 w-5" /> : <UserPlus className="mr-2 h-5 w-5" /> }
-              {isLoading ? "Creating Account..." : "Create Account"}
+            <Button type="submit" className="w-full text-lg py-6 rounded-lg" disabled={isSubmitting || authIsLoading}>
+              {isSubmitting ? <Spinner className="mr-2 h-5 w-5" /> : <UserPlus className="mr-2 h-5 w-5" /> }
+              {isSubmitting ? "Creating Account..." : "Create Account"}
             </Button>
           </form>
         </Form>

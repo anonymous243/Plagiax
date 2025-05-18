@@ -4,60 +4,65 @@
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { 
+  getAuth, 
+  onAuthStateChanged, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut,
+  updateProfile,
+  type User as FirebaseUser 
+} from "firebase/auth";
+import { auth as firebaseAuth } from '@/lib/firebase'; // Import your Firebase auth instance
 
 interface User {
-  fullName: string;
-  email: string;
+  uid: string;
+  fullName: string | null;
+  email: string | null;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
   currentUser: User | null;
-  login: (email: string, fullName: string) => void;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, fullName: string) => Promise<void>;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const COOKIE_CONSENT_NAME = 'plagiax_cookie_consent';
 
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    const storedAuthStatus = localStorage.getItem('plagiax_isAuthenticated');
-    if (storedAuthStatus === 'true') {
-      const storedUserEmail = localStorage.getItem('plagiax_currentUserEmail');
-      if (storedUserEmail) {
-        const storedUsersString = localStorage.getItem('plagiax_users');
-        const storedUsers = storedUsersString ? JSON.parse(storedUsersString) : [];
-        const user = storedUsers.find((u: any) => u.email === storedUserEmail);
-        if (user) {
-          setCurrentUser({ fullName: user.fullName, email: user.email });
-          setIsAuthenticated(true);
-        } else {
-          // Clear inconsistent state if user email is stored but user not found
-          localStorage.removeItem('plagiax_isAuthenticated');
-          localStorage.removeItem('plagiax_currentUserEmail');
-        }
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        setCurrentUser({ 
+          uid: firebaseUser.uid,
+          email: firebaseUser.email, 
+          fullName: firebaseUser.displayName 
+        });
       } else {
-         // Clear inconsistent state if authenticated but no user email
-        localStorage.removeItem('plagiax_isAuthenticated');
+        setCurrentUser(null);
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
+
+  const isAuthenticated = !!currentUser && !isLoading;
 
   useEffect(() => {
     if (!isLoading && isAuthenticated && (pathname === '/login' || pathname === '/signup')) {
       router.replace('/');
     }
-    // Define public paths that don't require authentication
+    
     const publicPaths = ['/login', '/signup', '/about', '/terms'];
     const isPublicPath = publicPaths.includes(pathname);
 
@@ -66,13 +71,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [isLoading, isAuthenticated, pathname, router]);
 
-  const login = (email: string, fullName: string) => {
-    localStorage.setItem('plagiax_isAuthenticated', 'true');
-    localStorage.setItem('plagiax_currentUserEmail', email);
-    setIsAuthenticated(true);
-    setCurrentUser({ fullName, email });
-
-    // Automatically set cookie consent on login if not already set
+  const login = async (email: string, password: string) => {
+    await signInWithEmailAndPassword(firebaseAuth, email, password);
+    // onAuthStateChanged will handle setting currentUser and redirecting
+    // Set cookie consent
     if (typeof window !== 'undefined') {
       const consentCookie = document.cookie
         .split('; ')
@@ -84,23 +86,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         document.cookie = `${COOKIE_CONSENT_NAME}=true; ${expires}; path=/; SameSite=Lax`;
       }
     }
-    
-    router.push('/'); 
+    router.push('/'); // Explicit redirect after successful login
   };
 
-  const logout = () => {
-    localStorage.removeItem('plagiax_isAuthenticated');
-    localStorage.removeItem('plagiax_currentUserEmail');
-    setIsAuthenticated(false);
-    setCurrentUser(null);
-    // Note: We don't clear the cookie consent cookie on logout.
-    // If the user previously accepted, that consent remains valid
-    // even if they log out and browse as a guest.
+  const signup = async (email: string, password: string, fullName: string) => {
+    const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+    await updateProfile(userCredential.user, { displayName: fullName });
+    // onAuthStateChanged will handle setting currentUser, but for immediate UI update:
+     setCurrentUser({
+      uid: userCredential.user.uid,
+      email: userCredential.user.email,
+      fullName: fullName,
+    });
+    // No automatic login after signup, user should go to login page
+    // router.push('/login'); // This was changed based on previous requests
+  };
+
+  const logout = async () => {
+    await signOut(firebaseAuth);
+    // onAuthStateChanged will handle setting currentUser to null
     router.push('/login'); 
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, currentUser, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ isAuthenticated, currentUser, login, signup, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
