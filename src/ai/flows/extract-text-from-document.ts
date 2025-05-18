@@ -15,14 +15,14 @@ const ExtractTextFromDocumentInputSchema = z.object({
   documentDataUri: z
     .string()
     .describe(
-      "The document file (e.g., DOCX or PDF) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "The PDF document file as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:application/pdf;base64,<encoded_data>'."
     ),
 });
 // Internal type alias
 type _ExtractTextFromDocumentInput = z.infer<typeof ExtractTextFromDocumentInputSchema>;
 
 const ExtractTextFromDocumentOutputSchema = z.object({
-  extractedText: z.string().describe('The extracted text content from the document body.'),
+  extractedText: z.string().describe('The extracted text content from the PDF document body.'),
 });
 // Internal type alias
 type _ExtractTextFromDocumentOutput = z.infer<typeof ExtractTextFromDocumentOutputSchema>;
@@ -46,7 +46,7 @@ const prompt = ai.definePrompt({
   name: 'extractTextFromDocumentPrompt',
   input: {schema: ExtractTextFromDocumentInputSchema},
   output: {schema: ExtractTextFromDocumentOutputSchema},
-  prompt: `You are an advanced document processing AI. Your primary task is to meticulously extract readable text content ONLY from the main body of the provided document (DOCX or PDF). The document is supplied as a data URI.
+  prompt: `You are an advanced document processing AI. Your primary task is to meticulously extract readable text content ONLY from the main body of the provided PDF document. The document is supplied as a data URI.
 
 Crucially, you MUST EXCLUDE any text found in headers and footers. Do not extract page numbers, document titles from headers, or any running footers.
 
@@ -59,15 +59,15 @@ Your extraction should focus on:
 
 Preserve paragraph structure and line breaks from the main body content as much as possible, but ONLY if it does not compromise the completeness of the extracted main body text. If there's a conflict, extracting ALL main body text is more important than perfectly preserving structure. Ensure no content from the main body is omitted.
 
-There is NO LIMIT on the length of the text to be extracted from the main body. Ensure the entire document's main body textual content is captured comprehensively.
+There is NO LIMIT on the length of the text to be extracted from the main body. Ensure the entire PDF document's main body textual content is captured comprehensively.
 
-Handle both DOCX and PDF files robustly. For DOCX files, ensure all main textual content is extracted. For PDF files, accurately parse text, respecting reading order where possible.
+Handle PDF files robustly. Accurately parse text, respecting reading order where possible.
 
-IMPORTANT: If the document is unprocessable due to its format, corruption, or if no main body text can be definitively identified and extracted (while strictly excluding headers/footers as instructed), you MUST still return the specified JSON output with an empty string for the 'extractedText' field. Do not return error messages or commentary within the 'extractedText' field itself; the JSON structure with an empty 'extractedText' is the required output for unprocessable or empty-body documents.
+IMPORTANT: If the PDF document is unprocessable due to its format, corruption, or if no main body text can be definitively identified and extracted (while strictly excluding headers/footers as instructed), you MUST still return the specified JSON output with an empty string for the 'extractedText' field. Do not return error messages or commentary within the 'extractedText' field itself; the JSON structure with an empty 'extractedText' is the required output for unprocessable or empty-body documents.
 
 Document: {{media url=documentDataUri}}
 
-Return ONLY the extracted text from the document's main body. If the document's main body is empty or contains no readable text (after successfully processing the file), return an empty string for the 'extractedText' field. Do not add any commentary, preamble, or explanation other than the extracted main body text itself. The output must be solely the content of the 'extractedText' field in the JSON format specified. Example: {"extractedText": "This is the extracted content..."}
+Return ONLY the extracted text from the PDF document's main body. If the document's main body is empty or contains no readable text (after successfully processing the file), return an empty string for the 'extractedText' field. Do not add any commentary, preamble, or explanation other than the extracted main body text itself. The output must be solely the content of the 'extractedText' field in the JSON format specified. Example: {"extractedText": "This is the extracted content..."}
 `,
 });
 

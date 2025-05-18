@@ -51,25 +51,19 @@ export default function HomePage() {
 
     setError(null);
     setInfo(null);
-    setDocumentText(""); // Clear textarea for any new file interaction
-    setExtractedFileText(null); // Clear previously extracted text
+    setDocumentText(""); 
+    setExtractedFileText(null); 
+    setFileName(null);
 
     if (file.size > MAX_FILE_SIZE_BYTES) {
       setError(`File is too large. Maximum size is ${MAX_FILE_SIZE_MB}MB.`);
       if (fileInputRef.current) fileInputRef.current.value = "";
-      setFileName(null);
       return;
     }
-
-    const allowedMimeTypesForDirectExtraction = [
-      "application/pdf",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" // DOCX
-    ];
-
-    if (!allowedMimeTypesForDirectExtraction.includes(file.type)) {
-      setError(`Invalid file type. Please upload a PDF or DOCX file.`);
+    
+    if (file.type !== "application/pdf") {
+      setError(`Invalid file type: ${file.name}. Only PDF files are supported for direct text extraction. For DOCX and other formats, please paste the text directly.`);
       if (fileInputRef.current) fileInputRef.current.value = "";
-      setFileName(null);
       return;
     }
 
@@ -94,28 +88,27 @@ export default function HomePage() {
           return;
         }
 
-        setCurrentTask(`Extracting text from ${file.name.split('.').pop()?.toUpperCase()}...`);
+        setCurrentTask(`Extracting text from PDF: ${file.name}...`);
         toast({ title: `Processing ${file.name}`, description: "Attempting to extract text. This may take a moment." });
 
         try {
           const extractionResult = await extractTextFromDocument({ documentDataUri: dataUri });
           if (extractionResult && typeof extractionResult.extractedText === 'string') {
             if (extractionResult.extractedText.trim().length === 0) {
-              setError(`Could not extract any text from '${file.name}'. The file might be image-based, empty, or unsupported for direct extraction. Please paste text directly if issues persist.`);
+              setError(`Could not extract any text from '${file.name}'. The PDF might be image-based, empty, or password-protected. Please paste text directly if issues persist.`);
               setExtractedFileText(null);
             } else {
               setExtractedFileText(extractionResult.extractedText);
-              // Do not set documentText here
-              setInfo(`${file.name.split('.').pop()?.toUpperCase()} processed: ${file.name} is ready. Its content will be used if the text area is empty.`);
+              setInfo(`PDF processed: ${file.name} is ready. Its content will be used if the text area is empty.`);
             }
           } else {
-            setError("Could not extract text or the file is empty. Please ensure it's a text-based file or paste text directly.");
+            setError("Could not extract text or the PDF is empty. Please ensure it's a text-based PDF or paste text directly.");
             setExtractedFileText(null);
           }
         } catch (extractionError: any) {
           console.error("Text extraction error:", extractionError);
           let errorMsg = `Failed to extract text from ${file.name}: ${extractionError.message || "Unknown error."}`;
-          if ((extractionError.message || "").toLowerCase().includes("flow execution")) {
+           if ((extractionError.message || "").toLowerCase().includes("flow execution") || (extractionError.message || "").toLowerCase().includes("server components render")) {
             errorMsg = `Failed to extract text from ${file.name} due to a server-side issue. Please try again or paste the text.`;
           }
           setError(errorMsg);
@@ -123,7 +116,6 @@ export default function HomePage() {
         } finally {
           setIsLoading(false);
           setCurrentTask("");
-          // Do not clear fileInputRef.current.value = "" here to allow resubmission if user wants to retry with pasted text later
         }
       };
       reader.onerror = () => {
@@ -152,24 +144,31 @@ export default function HomePage() {
 
     let textToCheck = documentText.trim();
     let docTitleForReport = documentTitleInput.trim();
-    let currentFileNameForHistory = fileName;
+    let currentFileNameForHistory = fileName; 
     let sourceDescription = "pasted text";
 
     if (!textToCheck && extractedFileText && extractedFileText.trim()) {
       textToCheck = extractedFileText.trim();
-      sourceDescription = `content from ${fileName || "uploaded file"}`;
+      sourceDescription = `content from ${fileName || "uploaded PDF"}`;
       if (!docTitleForReport && fileName) {
-        docTitleForReport = fileName.split('.').slice(0, -1).join('.') || "Uploaded Document";
+        docTitleForReport = fileName.split('.').slice(0, -1).join('.') || "Uploaded PDF Document";
       }
     } else if (textToCheck) {
       if (!docTitleForReport) {
         docTitleForReport = textToCheck.substring(0, 70) + (textToCheck.length > 70 ? "..." : "") || "Pasted Text";
       }
-      // If text is from textarea, it takes precedence. fileName might still be set from a previous selection.
+      // If text is from textarea, fileName might still be set from a previous PDF selection, but pasted text takes precedence.
+      // Only clear currentFileNameForHistory if text is pasted AND it's different from extractedFileText (or extractedFileText is null)
+      // This logic is a bit nuanced: if a PDF was extracted, then text pasted, the pasted text should be the source.
+      if (extractedFileText && textToCheck !== extractedFileText) {
+        currentFileNameForHistory = null; // Pasted text is now the primary source
+      } else if (!extractedFileText) {
+        currentFileNameForHistory = null; // No file extracted, definitely pasted text
+      }
     }
-
+    
     if (!textToCheck) {
-      setError("No text content available for plagiarism check. Please paste text or upload a supported file (PDF/DOCX) with extractable content.");
+      setError("No text content available for plagiarism check. Please paste text or upload a supported PDF file with extractable content.");
       setIsLoading(false);
       setCurrentTask("");
       return;
@@ -203,7 +202,7 @@ export default function HomePage() {
           timestamp: submissionTimestamp,
           plagiarismPercentage: aiReport.plagiarismPercentage,
           documentTitle: docTitleForReport,
-          fileName: currentFileNameForHistory || undefined,
+          fileName: currentFileNameForHistory || undefined, 
         };
         try {
           const historyKey = `plagiax_history_${currentUser.email}`;
@@ -265,7 +264,7 @@ export default function HomePage() {
         {/* Right Column - Form */}
         <div className="space-y-6 bg-card p-6 sm:p-8 rounded-xl shadow-xl border border-border transition-all duration-300 ease-out hover:shadow-2xl hover:-translate-y-1">
           <p className="text-base text-muted-foreground">
-            Paste text directly, or upload a PDF/DOCX (text will be attempted for extraction).
+            Paste text directly, or upload a PDF (text will be attempted for extraction). For DOCX and other formats, please paste text.
           </p>
 
           {error && (
@@ -305,8 +304,8 @@ export default function HomePage() {
             value={documentText}
             onChange={(e) => {
               setDocumentText(e.target.value);
-              if (error && !e.target.value.trim() && !extractedFileText) setError(null);
-              if (info) setInfo(null);
+              if (error && !e.target.value.trim() && !extractedFileText) setError(null); // Clear error if user starts typing and no file extracted
+              if (info) setInfo(null); // Clear info if user starts typing
             }}
             rows={8}
             className="rounded-lg text-base focus:ring-primary/80 border-input"
@@ -331,31 +330,24 @@ export default function HomePage() {
             <CloudUpload className="h-10 w-10 text-muted-foreground mb-2" />
             <p className="text-sm text-muted-foreground">
               Drag and drop or{' '}
-              <span className="font-semibold text-primary">browse</span> your files
+              <span className="font-semibold text-primary">browse</span> your PDF file
             </p>
-            <p className="text-xs text-muted-foreground mt-1">PDF/DOCX up to {MAX_FILE_SIZE_MB}MB.</p>
+            <p className="text-xs text-muted-foreground mt-1">PDF up to {MAX_FILE_SIZE_MB}MB. For DOCX/other, paste text.</p>
             <input
               id="file-upload"
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
-              accept=".pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              accept=".pdf,application/pdf"
               className="hidden"
               disabled={isLoading}
             />
           </div>
-          {fileName && !isLoading && !error && !info && (
-            <p className="text-sm text-green-600 dark:text-green-400 flex items-center">
-              <CheckCircle className="h-4 w-4 mr-1.5 shrink-0" />
-              {extractedFileText
-                ? `File: ${fileName} processed (${extractedFileText.split(/\s+/).filter(Boolean).length} words extracted). Ready for check.`
-                : `File: ${fileName} selected. Attempting extraction or use pasted text.`}
-            </p>
-          )}
-           {fileName && !isLoading && error && (error.includes(fileName) || error.toLowerCase().includes('docx')) && (
-            <p className="text-sm text-destructive flex items-center">
-              <AlertCircle className="h-4 w-4 mr-1.5 shrink-0" />
-              Selected: {fileName} (See error/info above)
+          {fileName && !isLoading && !error && !info && ( // General info when file is selected but no specific info/error message
+            <p className="text-sm text-muted-foreground flex items-center">
+              <CheckCircle className="h-4 w-4 mr-1.5 shrink-0 text-green-500" />
+              Selected file: {fileName}.
+              {extractedFileText ? ` (${extractedFileText.split(/\s+/).filter(Boolean).length} words extracted). Ready for check.` : " Paste content if it's not a PDF or if PDF extraction fails."}
             </p>
           )}
 
@@ -385,7 +377,7 @@ export default function HomePage() {
       </div>
 
       <div className="mt-16 text-sm text-muted-foreground max-w-3xl mx-auto text-left md:text-center">
-          Leveraging state-of-the-art artificial intelligence, Plagiax conducts comprehensive textual analysis by cross-referencing submitted documents against an expansive global content database. Our intelligent system provides nuanced originality insights, with intelligent parsing capabilities that extract and analyze core content from diverse file formats including DOCX and PDF. Users should interpret results as a sophisticated guidance tool, recognizing the contextual nature of content similarity.
+          Leveraging state-of-the-art artificial intelligence, Plagiax conducts comprehensive textual analysis by cross-referencing submitted documents against an expansive global content database. Our intelligent system provides nuanced originality insights, with intelligent parsing capabilities that extract and analyze core content from PDF files. Users should interpret results as a sophisticated guidance tool, recognizing the contextual nature of content similarity. For DOCX and other text formats, please paste the content directly.
       </div>
     </div>
   );
