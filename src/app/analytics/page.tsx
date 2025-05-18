@@ -8,16 +8,29 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Spinner } from '@/components/ui/spinner';
 import { AlertTriangle, BarChartBig as AnalyticsIcon, FilePieChart, Percent, ListChecks } from 'lucide-react';
 import type { ReportHistoryItemSummary } from '@/types/history';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip as ChartTooltip, ResponsiveContainer, Pie, PieChart, Cell } from 'recharts';
-import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
+import { ChartConfig } from '@/components/ui/chart'; // Only ChartConfig is needed directly here
+import { Skeleton } from '@/components/ui/skeleton';
+import dynamic from 'next/dynamic';
 
-interface DocumentTypeDistribution {
+// Dynamically import chart wrappers
+const DynamicBarChartWrapper = dynamic(() => import('@/components/analytics/bar-chart-wrapper'), {
+  loading: () => <Skeleton className="h-[450px] w-full rounded-xl" />, // Approx height of Card
+  ssr: false,
+});
+
+const DynamicPieChartWrapper = dynamic(() => import('@/components/analytics/pie-chart-wrapper'), {
+  loading: () => <Skeleton className="h-[450px] w-full rounded-xl" />, // Approx height of Card
+  ssr: false,
+});
+
+
+export interface DocumentTypeDistribution { // Exporting for wrapper components
   name: string;
   value: number;
   fill: string;
 }
 
-interface AnalyticsData {
+export interface AnalyticsData { // Exporting for wrapper components
   totalChecks: number;
   averageSimilarity: number;
   documentTypeDistribution: DocumentTypeDistribution[];
@@ -49,6 +62,7 @@ export default function AnalyticsPage() {
   const router = useRouter();
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(true);
+  const [chartConfig, setChartConfig] = useState<ChartConfig>({});
 
   useEffect(() => {
     if (!authIsLoading && !isAuthenticated) {
@@ -96,11 +110,22 @@ export default function AnalyticsPage() {
           }))
           .sort((a, b) => b.value - a.value);
         
-        setAnalyticsData({
+        const currentAnalyticsData = {
           totalChecks,
           averageSimilarity,
           documentTypeDistribution,
-        });
+        };
+        setAnalyticsData(currentAnalyticsData);
+
+        const newChartConfig: ChartConfig = currentAnalyticsData.documentTypeDistribution.reduce((config, item) => {
+          config[item.name] = { label: item.name, color: item.fill };
+          return config;
+        }, {} as ChartConfig);
+        
+        if (currentAnalyticsData.documentTypeDistribution.length) {
+          newChartConfig.value = { label: "Count", color: "hsl(var(--primary))" };
+        }
+        setChartConfig(newChartConfig);
 
       } catch (error) {
         console.error("Failed to load or process analytics data:", error);
@@ -109,12 +134,11 @@ export default function AnalyticsPage() {
         setIsLoadingAnalytics(false);
       }
     } else if (!authIsLoading && !isAuthenticated) {
-      setAnalyticsData(null); // Clear data if not authenticated
+      setAnalyticsData(null); 
       setIsLoadingAnalytics(false);
     } else if (authIsLoading) {
-        // Still loading auth, do nothing until it resolves
+        // Still loading auth, do nothing
     } else {
-        // Default case, e.g. currentUser is null but was authenticated (shouldn't happen with current auth logic)
         setAnalyticsData({ totalChecks: 0, averageSimilarity: 0, documentTypeDistribution: [] });
         setIsLoadingAnalytics(false);
     }
@@ -127,17 +151,7 @@ export default function AnalyticsPage() {
       </div>
     );
   }
-
-  const chartConfig: ChartConfig = analyticsData?.documentTypeDistribution.reduce((config, item) => {
-    config[item.name] = { label: item.name, color: item.fill };
-    return config;
-  }, {} as ChartConfig) ?? {};
   
-  if (analyticsData?.documentTypeDistribution.length) {
-    chartConfig.value = { label: "Count", color: "hsl(var(--primary))" };
-  }
-
-
   return (
     <div className="container mx-auto py-8 px-4">
       <header className="mb-10 text-center">
@@ -150,8 +164,9 @@ export default function AnalyticsPage() {
       </header>
 
       {isLoadingAnalytics ? (
-        <div className="flex justify-center items-center py-20">
-          <Spinner className="h-12 w-12 text-primary" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <Skeleton className="h-28 w-full rounded-xl" />
+            <Skeleton className="h-28 w-full rounded-xl" />
         </div>
       ) : !analyticsData || analyticsData.totalChecks === 0 ? (
         <Card className="shadow-lg rounded-xl text-center py-10">
@@ -194,80 +209,13 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {analyticsData && analyticsData.documentTypeDistribution.length > 0 && (
+      {!isLoadingAnalytics && analyticsData && analyticsData.documentTypeDistribution.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="shadow-lg rounded-xl">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <AnalyticsIcon className="h-6 w-6 text-primary" />
-              <CardTitle className="text-xl">Document Type Distribution (Bar)</CardTitle>
-            </div>
-            <CardDescription>Breakdown of checked document and text types.</CardDescription>
-          </CardHeader>
-          <CardContent className="h-[350px] w-full">
-           <ChartContainer config={chartConfig} className="h-full w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analyticsData.documentTypeDistribution} layout="vertical" margin={{ right: 20, left: 30, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 12 }} interval={0} />
-                  <ChartTooltip cursor={{fill: 'hsl(var(--muted))'}} content={<ChartTooltipContent />} />
-                  <Bar dataKey="value" name="Count" radius={4}>
-                     {analyticsData.documentTypeDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-        <Card className="shadow-lg rounded-xl">
-            <CardHeader>
-                 <div className="flex items-center gap-2">
-                    <FilePieChart className="h-6 w-6 text-primary" />
-                    <CardTitle className="text-xl">Document Type Distribution (Pie)</CardTitle>
-                </div>
-                <CardDescription>Visual breakdown of checked document types.</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[350px] w-full flex items-center justify-center">
-                 <ChartContainer config={chartConfig} className="h-full w-full aspect-square">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                            <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                            <Pie
-                                data={analyticsData.documentTypeDistribution}
-                                dataKey="value"
-                                nameKey="name"
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={120}
-                                labelLine={false}
-                                label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name }) => {
-                                  const RADIAN = Math.PI / 180;
-                                  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                                  // Only show label if percent is significant enough (e.g., > 5%)
-                                  if (percent * 100 < 5) return null;
-                                  return (
-                                    <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="10px">
-                                      {`${name} (${(percent * 100).toFixed(0)}%)`}
-                                    </text>
-                                  );
-                                }}
-                            >
-                                {analyticsData.documentTypeDistribution.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                                ))}
-                            </Pie>
-                        </PieChart>
-                    </ResponsiveContainer>
-                </ChartContainer>
-            </CardContent>
-        </Card>
+          <DynamicBarChartWrapper data={analyticsData.documentTypeDistribution} chartConfig={chartConfig} />
+          <DynamicPieChartWrapper data={analyticsData.documentTypeDistribution} chartConfig={chartConfig} />
         </div>
       )}
     </div>
   );
 }
+
