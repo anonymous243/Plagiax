@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input"; 
 import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/ui/spinner";
-import { AlertCircle, CheckCircle, CloudUpload, Send, ChevronsRight, FileText } from "lucide-react";
+import { AlertCircle, CheckCircle, CloudUpload, Send, ChevronsRight, FileText, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useReport, type FullReportData } from "@/context/ReportContext";
 import { useAuth } from "@/context/AuthContext";
@@ -31,6 +31,7 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [currentTask, setCurrentTask] = React.useState(""); 
   const [error, setError] = React.useState<string | null>(null);
+  const [info, setInfo] = React.useState<string | null>(null);
   const [fileName, setFileName] = React.useState<string | null>(null);
   const { toast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -46,6 +47,7 @@ export default function HomePage() {
     const file = event.target.files?.[0];
     if (!file) {
       setError("No file selected.");
+      setInfo(null);
       setFileName(null);
       setExtractedFileText(null);
       return;
@@ -53,19 +55,22 @@ export default function HomePage() {
 
     if (file.size > MAX_FILE_SIZE_BYTES) {
       setError(`File is too large. Maximum size is ${MAX_FILE_SIZE_MB}MB.`);
+      setInfo(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       setFileName(null);
       setExtractedFileText(null);
       return;
     }
     
-    const allowedMimeTypes = [
-      "application/pdf", 
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" // DOCX
+    const allowedMimeTypesForExtraction = ["application/pdf"];
+    const allowedMimeTypesForSelection = [
+        "application/pdf", 
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" // DOCX
     ];
 
-    if (!allowedMimeTypes.includes(file.type)) {
+    if (!allowedMimeTypesForSelection.includes(file.type)) {
       setError(`Invalid file type. Please upload a PDF or DOCX file.`);
+      setInfo(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       setFileName(null);
       setExtractedFileText(null);
@@ -73,13 +78,31 @@ export default function HomePage() {
     }
 
     setError(null);
-    setDocumentText(""); // Clear textarea, as it's for manual input now
+    setInfo(null);
+    setDocumentText(""); // Clear textarea for any new file interaction
     setExtractedFileText(null); // Clear previously extracted text
     setFileName(file.name);
     if (!documentTitleInput && file.name) {
         setDocumentTitleInput(file.name.split('.').slice(0, -1).join('.'));
     }
     
+    if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") { // DOCX
+      setIsLoading(false); // Not loading for AI extraction for DOCX
+      setCurrentTask("");
+      setExtractedFileText(null); // Ensure no prior extracted text is used
+      const docxInfo = "DOCX selected. Direct AI text extraction is not supported for DOCX. Please copy and paste the content into the text area above.";
+      setInfo(docxInfo);
+      toast({
+        title: "DOCX File Selected",
+        description: "Please copy and paste the content from your DOCX file into the text area. Auto-extraction is not available for DOCX.",
+        variant: "default",
+        duration: 8000,
+      });
+      if (fileInputRef.current) fileInputRef.current.value = ""; // Clear file input after selection
+      return;
+    }
+    
+    // Proceed with PDF extraction
     setIsLoading(true);
     setCurrentTask("Reading file...");
 
@@ -89,6 +112,7 @@ export default function HomePage() {
         const dataUri = e.target?.result as string;
         if (!dataUri) {
           setError("Failed to read file data.");
+          setInfo(null);
           setIsLoading(false);
           setCurrentTask("");
           if (fileInputRef.current) fileInputRef.current.value = "";
@@ -97,34 +121,41 @@ export default function HomePage() {
           return;
         }
 
-        setCurrentTask("Extracting text from file...");
-        toast({ title: "Processing File", description: "Attempting to extract text. This may take a moment." });
+        setCurrentTask("Extracting text from PDF...");
+        toast({ title: "Processing PDF", description: "Attempting to extract text. This may take a moment." });
         
         try {
           const extractionResult = await extractTextFromDocument({ documentDataUri: dataUri });
           if (extractionResult && typeof extractionResult.extractedText === 'string') {
-            setExtractedFileText(extractionResult.extractedText); // Store extracted text separately
-            toast({
-              title: "File Processed",
-              description: `${file.name} is ready for plagiarism check.`,
-              variant: "default",
-            });
+            if(extractionResult.extractedText.trim().length === 0){
+              setError(`Could not extract any text from '${file.name}'. The file might be image-based or empty. Please paste text directly.`);
+              setInfo(null);
+              setExtractedFileText(null);
+              if (fileInputRef.current) fileInputRef.current.value = ""; // Clear file if empty
+              setFileName(null); // Clear filename if empty
+            } else {
+              setExtractedFileText(extractionResult.extractedText); // Store extracted text
+              toast({
+                title: "PDF Processed",
+                description: `${file.name} is ready for plagiarism check. Its content will be used if the text area is empty.`,
+                variant: "default",
+              });
+            }
           } else {
-            let specificError = "Could not extract text or document is empty.";
-            setError(specificError);
+            setError("Could not extract text or PDF is empty. Please ensure it's a text-based PDF or paste text directly.");
+            setInfo(null);
             if (fileInputRef.current) fileInputRef.current.value = "";
             setFileName(null);
             setExtractedFileText(null);
           }
         } catch (extractionError: any) {
           console.error("Text extraction error:", extractionError);
-          let errorMsg = `Failed to extract text: ${extractionError.message || "Unknown error."}`;
-          if (extractionError.message && extractionError.message.toLowerCase().includes("not supported")) {
-              errorMsg = `The AI model may not support direct text extraction for '${file.type}'. If issues persist, please paste the text directly.`;
-          } else if ((extractionError.message || "").toLowerCase().includes("server component") || (extractionError.message || "").toLowerCase().includes("flow execution")) {
+          let errorMsg = `Failed to extract text from PDF: ${extractionError.message || "Unknown error."}`;
+           if ((extractionError.message || "").toLowerCase().includes("flow execution")) {
               errorMsg = "Failed to extract text due to a server-side issue. Please try again or paste the text.";
           }
           setError(errorMsg);
+          setInfo(null);
           if (fileInputRef.current) fileInputRef.current.value = "";
           setFileName(null);
           setExtractedFileText(null);
@@ -134,7 +165,8 @@ export default function HomePage() {
         }
       };
       reader.onerror = () => {
-        setError("Failed to read file.");
+        setError("Failed to read PDF file.");
+        setInfo(null);
         setIsLoading(false);
         setCurrentTask("");
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -145,6 +177,7 @@ export default function HomePage() {
     } catch (err: any) {
       console.error("File processing error:", err);
       setError(`An error occurred: ${err.message || "Unknown error."}`);
+      setInfo(null);
       setIsLoading(false);
       setCurrentTask("");
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -154,32 +187,40 @@ export default function HomePage() {
   };
 
   const handleSubmit = async () => {
+    setError(null); // Clear previous errors
+    setInfo(null); // Clear previous info messages
+
     let textToCheck = documentText.trim(); // Text from textarea
     let docTitleForReport = documentTitleInput.trim();
-    let currentFileNameForHistory = fileName; // Last selected/processed file name
+    let currentFileNameForHistory = fileName;
     let sourceDescription = "pasted text";
 
-    // If textarea is empty, try using text extracted from a file
     if (!textToCheck && extractedFileText && extractedFileText.trim()) {
+      // Use extracted PDF text if textarea is empty
       textToCheck = extractedFileText.trim();
       sourceDescription = `content from ${fileName || "uploaded file"}`;
-      if (!docTitleForReport && fileName) { // If no manual title, use filename for title
+      if (!docTitleForReport && fileName) { 
         docTitleForReport = fileName.split('.').slice(0, -1).join('.') || "Uploaded Document";
       }
-    } else if (textToCheck) { // Text from textarea is primary
-      if (!docTitleForReport) { // If no manual title, generate from pasted text
+    } else if (textToCheck) { 
+      // Text from textarea is primary
+      if (!docTitleForReport) { 
         docTitleForReport = textToCheck.substring(0, 70) + (textToCheck.length > 70 ? "..." : "") || "Pasted Text";
       }
-      // If using pasted text, should `currentFileNameForHistory` be cleared or kept?
-      // Keeping it indicates a file *might* have been selected, even if its content wasn't used.
-      // For clarity, if pasted text is used, let's make fileName in history undefined for this check.
       if (sourceDescription === "pasted text") {
-        currentFileNameForHistory = null; 
+        currentFileNameForHistory = null; // No specific file if text was pasted
       }
+    } else if (fileName && fileName.toLowerCase().endsWith('.docx')) {
+      // DOCX was "selected", but no text was pasted into the textarea
+      setError("For DOCX files, please copy and paste the content into the text area above before submitting.");
+      setIsLoading(false);
+      setCurrentTask("");
+      return;
     }
 
+
     if (!textToCheck) {
-      setError("Please paste text directly or upload a PDF/DOCX file from which text can be extracted.");
+      setError("No text content available for plagiarism check. Please ensure your PDF has extractable text, or paste text directly from your document (including DOCX).");
       setIsLoading(false);
       setCurrentTask("");
       return;
@@ -188,7 +229,6 @@ export default function HomePage() {
         docTitleForReport = "Untitled Document";
     }
 
-    setError(null);
     setIsLoading(true);
     setCurrentTask("Checking for plagiarism...");
     toast({ title: "Hold Tight!", description: "Analyzing your submission. This might take some time." });
@@ -202,7 +242,7 @@ export default function HomePage() {
       const fullReportData: FullReportData = {
         aiOutput: aiReport,
         documentTitle: docTitleForReport,
-        documentTextContent: textToCheck, // The actual text used for the check
+        documentTextContent: textToCheck,
         submissionTimestamp: submissionTimestamp,
         submissionId: submissionId,
       };
@@ -236,7 +276,7 @@ export default function HomePage() {
       });
     } catch (err: any) {
       console.error("Plagiarism check error:", err);
-      setError(`An error occurred: ${err.message || "Please try again."}`);
+      setError(`An error occurred during plagiarism check: ${err.message || "Please try again."}`);
       toast({
         title: "Analysis Failed",
         description: `Could not generate report: ${err.message || "Please try again."}`,
@@ -276,7 +316,7 @@ export default function HomePage() {
         {/* Right Column - Form */}
         <div className="space-y-6 bg-card p-6 sm:p-8 rounded-xl shadow-xl border border-border transition-all duration-300 ease-out hover:shadow-2xl hover:-translate-y-1">
           <p className="text-base text-muted-foreground">
-            Paste text directly, or upload a PDF/DOCX file (text will be extracted for checking).
+            Paste text directly, or upload a PDF (text will be extracted for checking). For DOCX, please paste content.
           </p>
 
           {error && (
@@ -284,6 +324,13 @@ export default function HomePage() {
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Error</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          {info && !error && (
+             <Alert variant="default" className="border-primary/50 text-primary bg-primary/5 dark:bg-primary/10">
+              <Info className="h-4 w-4 text-primary" />
+              <AlertTitle>Information</AlertTitle>
+              <AlertDescription>{info}</AlertDescription>
             </Alert>
           )}
 
@@ -309,7 +356,8 @@ export default function HomePage() {
             value={documentText}
             onChange={(e) => {
               setDocumentText(e.target.value);
-              if (error) setError(null); // Clear error when user types in textarea
+              if (error) setError(null); 
+              if (info) setInfo(null);
             }}
             rows={8}
             className="rounded-lg text-base focus:ring-primary/80 border-input"
@@ -336,7 +384,7 @@ export default function HomePage() {
               Drag and drop or{' '}
               <span className="font-semibold text-primary">browse</span> your files
             </p>
-            <p className="text-xs text-muted-foreground mt-1">PDF or DOCX. Up to {MAX_FILE_SIZE_MB}MB.</p>
+            <p className="text-xs text-muted-foreground mt-1">PDF up to {MAX_FILE_SIZE_MB}MB. For DOCX, paste content.</p>
             <input
               id="file-upload"
               type="file"
@@ -347,13 +395,15 @@ export default function HomePage() {
               disabled={isLoading}
             />
           </div>
-          {fileName && !isLoading && !error && ( 
+          {fileName && !isLoading && !error && !info && ( 
             <p className="text-sm text-green-600 dark:text-green-400 flex items-center">
               <CheckCircle className="h-4 w-4 mr-1.5 shrink-0" /> 
-              File: {fileName} {extractedFileText ? ` (processed, ${extractedFileText.split(/\s+/).filter(Boolean).length} words)` : '(selected)'}
+              {fileName.toLowerCase().endsWith('.pdf') && extractedFileText 
+                ? `PDF: ${fileName} processed (${extractedFileText.split(/\s+/).filter(Boolean).length} words extracted). Ready for check if text area is empty.` 
+                : `File: ${fileName} selected.`}
             </p>
           )}
-           {fileName && !isLoading && error && error.includes(fileName) && ( // Show filename if error relates to it
+           {fileName && !isLoading && error && error.includes(fileName) && (
             <p className="text-sm text-destructive flex items-center">
               <AlertCircle className="h-4 w-4 mr-1.5 shrink-0" />
               Selected: {fileName}
@@ -370,7 +420,7 @@ export default function HomePage() {
 
           <Button 
             onClick={handleSubmit} 
-            disabled={isLoading || (!documentText.trim() && (!extractedFileText || !extractedFileText.trim()))}
+            disabled={isLoading || (!documentText.trim() && !extractedFileText && !(fileName && fileName.toLowerCase().endsWith('.docx'))) || (fileName && fileName.toLowerCase().endsWith('.docx') && !documentText.trim())}
             className="w-full text-lg py-3 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {isLoading ? (
@@ -392,6 +442,8 @@ export default function HomePage() {
     </div>
   );
 }
+    
+
     
 
     
