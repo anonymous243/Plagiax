@@ -5,13 +5,16 @@ import type { FullReportData } from "@/context/ReportContext";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileSearch, Mail, FileText, CalendarDays, Percent, User, Fingerprint, FileType, Library, Globe, University, LinkIcon, ExternalLink, QrCode, Printer } from "lucide-react";
+import { FileSearch, Mail, FileText, CalendarDays, Percent, User, Fingerprint, FileType, Library, Globe, University, LinkIcon, ExternalLink, QrCode, FileDown } from "lucide-react";
 import { Languages } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import * as React from "react";
 import { useAuth } from "@/context/AuthContext";
 import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import { Spinner } from "@/components/ui/spinner";
 
 interface ReportPageComponentProps {
   reportDetails: FullReportData;
@@ -58,6 +61,7 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
   const { toast } = useToast();
   const { aiOutput, documentTitle, documentTextContent, submissionTimestamp, submissionId } = reportDetails;
   const { plagiarismPercentage, findings } = aiOutput;
+  const [isGeneratingPdf, setIsGeneratingPdf] = React.useState(false);
 
   const totalWords = React.useMemo(() => {
     return documentTextContent.split(/\s+/).filter(Boolean).length;
@@ -99,7 +103,7 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
         if (finding.similarityScore !== undefined) {
           content += `  Similarity Score: ${finding.similarityScore.toFixed(0)}%\n`;
         }
-        content += `  Source Type: Internet Data\n`; // Assuming for now
+        content += `  Source Type: Internet Data\n`; 
       });
     } else if (plagiarismPercentage > 0) {
         content += `--- Matched Sources ---\n`;
@@ -145,19 +149,102 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
     }
   };
 
-  const handlePrintOrSavePdf = () => {
-    // Call window.print() first.
-    // The print dialog is typically modal and will block further JS execution
-    // on the main thread until it's dismissed.
-    window.print();
+  const handleDownloadPdf = async () => {
+    const reportElement = document.getElementById('plagiaxReportCard');
+    if (!reportElement) {
+      toast({
+        title: "Error",
+        description: "Could not find report content to download.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // This toast will likely appear *after* the user interacts with the print dialog.
+    setIsGeneratingPdf(true);
     toast({
-      title: "Print Dialog Opened",
-      description: "Use your browser's print options to 'Save as PDF'. If you saved, check your downloads.",
-      variant: "default",
+      title: "Generating PDF...",
+      description: "Please wait while your report is being prepared.",
     });
+
+    try {
+      const canvas = await html2canvas(reportElement, {
+        scale: 2, // Increase scale for better quality
+        useCORS: true, // If there are any external images (though unlikely here)
+        logging: false, // Disable html2canvas logging in console
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt', // points
+        format: 'a4',
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgProps = pdf.getImageProperties(imgData);
+      const imgWidth = imgProps.width;
+      const imgHeight = imgProps.height;
+
+      // Calculate aspect ratio
+      const ratio = imgWidth / imgHeight;
+      
+      let newImgWidth = pdfWidth;
+      let newImgHeight = newImgWidth / ratio;
+
+      // If the image height is still too large, scale based on height
+      if (newImgHeight > pdfHeight) {
+        newImgHeight = pdfHeight;
+        newImgWidth = newImgHeight * ratio;
+      }
+      
+      // Center the image on the page (optional)
+      const xOffset = (pdfWidth - newImgWidth) / 2;
+      const yOffset = (pdfHeight - newImgHeight) / 2;
+
+
+      // For simplicity, this adds the image to one page.
+      // For very long reports that exceed one A4 page, content might be cut off or scaled down significantly.
+      // True multi-page PDF generation from HTML is more complex.
+      if (imgHeight > pdf.internal.pageSize.getHeight()) {
+         // Simple multi-page handling: add image multiple times, adjust y-position
+         // This is a very basic approach and might not be ideal for all content
+         let position = 0;
+         const pageHeight = pdf.internal.pageSize.getHeight();
+         pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight * (pdfWidth/imgWidth) );
+         let heightLeft = imgHeight * (pdfWidth/imgWidth) - pageHeight;
+         while (heightLeft > 0) {
+            position -= pageHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight * (pdfWidth/imgWidth));
+            heightLeft -= pageHeight;
+         }
+
+      } else {
+          pdf.addImage(imgData, 'PNG', xOffset, yOffset, newImgWidth, newImgHeight);
+      }
+
+
+      pdf.save(`Plagiax_Report_${submissionId}.pdf`);
+      
+      toast({
+        title: "Download Started",
+        description: "Your PDF report should begin downloading shortly.",
+        variant: "default"
+      });
+
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({
+        title: "PDF Generation Failed",
+        description: "An error occurred while generating the PDF.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
+
 
   return (
     <div className="container mx-auto py-8 px-4 flex flex-col items-center min-h-[calc(100vh-4rem)]">
@@ -182,15 +269,14 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
           .no-print {
             display: none !important;
           }
-          /* Ensure card content is styled for print */
-          .printable-area .text-primary { color: #000 !important; } /* Example: make primary text black for print */
-          .printable-area .text-destructive { color: #D00 !important; } /* Example: make destructive text a dark red */
+          .printable-area .text-primary { color: #000 !important; } 
+          .printable-area .text-destructive { color: #D00 !important; } 
           .printable-area .bg-primary\\/10 { background-color: transparent !important; }
           .printable-area .shadow-sm, .printable-area .shadow-2xl, .printable-area .shadow-lg { box-shadow: none !important; }
           .printable-area .border { border: 1px solid #ccc !important; }
         }
       `}</style>
-      <Card className="w-full max-w-4xl shadow-2xl rounded-xl overflow-hidden printable-area">
+      <Card id="plagiaxReportCard" className="w-full max-w-4xl shadow-2xl rounded-xl overflow-hidden printable-area">
         <CardHeader className="bg-primary/10 p-6">
           <div className="flex items-center gap-3 mb-1">
             <FileText className="h-8 w-8 text-primary" />
@@ -343,13 +429,18 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
 
         </CardContent>
         <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-3 p-6 pt-6 border-t border-border mt-4 bg-muted/30 no-print">
-          <Button variant="outline" onClick={onBack} className="w-full sm:w-auto text-base py-3 rounded-lg">
+          <Button variant="outline" onClick={onBack} className="w-full sm:w-auto text-base py-3 rounded-lg"  disabled={isGeneratingPdf}>
             <FileSearch className="mr-2 h-5 w-5" /> Check Another
           </Button>
-          <Button onClick={handlePrintOrSavePdf} variant="default" className="w-full sm:w-auto text-base py-3 rounded-lg">
-            <Printer className="mr-2 h-5 w-5" /> Print / Save PDF
+          <Button onClick={handleDownloadPdf} variant="default" className="w-full sm:w-auto text-base py-3 rounded-lg" disabled={isGeneratingPdf}>
+            {isGeneratingPdf ? (
+              <Spinner className="mr-2 h-5 w-5 animate-spin" />
+            ) : (
+              <FileDown className="mr-2 h-5 w-5" />
+            )}
+            {isGeneratingPdf ? "Generating..." : "Download PDF"}
           </Button>
-          <Button onClick={handleShareEmail} variant="default" className="w-full sm:w-auto text-base py-3 rounded-lg">
+          <Button onClick={handleShareEmail} variant="default" className="w-full sm:w-auto text-base py-3 rounded-lg" disabled={isGeneratingPdf}>
             <Mail className="mr-2 h-5 w-5" /> Share via Email
           </Button>
         </CardFooter>
@@ -357,5 +448,3 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
     </div>
   );
 }
-
-
