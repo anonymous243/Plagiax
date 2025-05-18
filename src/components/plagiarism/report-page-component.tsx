@@ -26,12 +26,19 @@ const getGrade = (percentage: number): string => {
 };
 
 const getDomain = (url?: string): string => {
-  if (!url) return "N/A";
+  if (!url || url.trim() === "" || !url.includes("://")) {
+    // If URL is empty, just whitespace, or doesn't include a scheme (like http:// or https://)
+    // then it's not a parsable absolute URL for the new URL() constructor.
+    // It might also be a placeholder like "general web content" from the AI.
+    return "N/A"; 
+  }
   try {
     const hostname = new URL(url).hostname;
     // Remove www. if present for cleaner display
     return hostname.startsWith('www.') ? hostname.substring(4) : hostname;
   } catch (e) {
+    // This catch is for URLs that include "://" but are still malformed,
+    // or if the URL constructor has other issues with it.
     return "Invalid URL";
   }
 };
@@ -84,14 +91,20 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
       body += `--- Matched Sources ---\n`;
       findings.forEach((finding, index) => {
         body += `\nMatch #${index + 1}:\n`;
-        body += `  Snippet: "${finding.snippetFromDocument.substring(0, 100)}..."\n`;
-        if (finding.sourceURL) {
-          body += `  Domain: ${getDomain(finding.sourceURL)}\n`;
+        body += `  Snippet: "${(finding.snippetFromDocument || 'N/A').substring(0, 100)}..."\n`; // Added check for undefined snippet
+        const domain = getDomain(finding.sourceURL);
+        if (domain !== "N/A" && domain !== "Invalid URL" && finding.sourceURL) {
+           body += `  Source: ${finding.sourceURL}\n`;
+           body += `  Domain: ${domain}\n`;
+        } else if (finding.sourceURL) { // If AI provided something but it wasn't a good URL
+           body += `  Suspected Source Info: ${finding.sourceURL}\n`;
+        } else {
+           body += `  Source: Not specified\n`;
         }
         if (finding.similarityScore !== undefined) {
           body += `  Similarity: ${finding.similarityScore.toFixed(0)}%\n`;
         }
-        body += `  Source Type: Internet Data\n`;
+        body += `  Source Type: Internet Data\n`; // Assuming for now
       });
     }
     
@@ -216,36 +229,39 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[60%]">Matched Domain</TableHead>
+                      <TableHead className="w-[60%]">Matched Domain / Source Info</TableHead>
                       <TableHead className="text-center">Similarity</TableHead>
                       <TableHead>Source Type</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {findings.map((finding, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">
-                           {finding.sourceURL ? (
-                            <a 
-                              href={finding.sourceURL} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="text-primary hover:underline flex items-center break-all"
-                            >
-                              <LinkIcon className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
-                              {getDomain(finding.sourceURL)}
-                              <ExternalLink className="h-3.5 w-3.5 ml-1 text-muted-foreground flex-shrink-0" />
-                            </a>
-                          ) : (
-                            getDomain(finding.sourceURL)
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {finding.similarityScore !== undefined ? `${finding.similarityScore.toFixed(0)}%` : "N/A"}
-                        </TableCell>
-                        <TableCell>Internet Data</TableCell>
-                      </TableRow>
-                    ))}
+                    {findings.map((finding, index) => {
+                      const domainDisplay = getDomain(finding.sourceURL);
+                      return (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">
+                            {finding.sourceURL && domainDisplay !== "N/A" && domainDisplay !== "Invalid URL" ? (
+                              <a 
+                                href={finding.sourceURL} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-primary hover:underline flex items-center break-all"
+                              >
+                                <LinkIcon className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+                                {domainDisplay}
+                                <ExternalLink className="h-3.5 w-3.5 ml-1 text-muted-foreground flex-shrink-0" />
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground">{finding.sourceURL || 'Source not specified'}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {finding.similarityScore !== undefined ? `${finding.similarityScore.toFixed(0)}%` : "N/A"}
+                          </TableCell>
+                          <TableCell>Internet Data</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

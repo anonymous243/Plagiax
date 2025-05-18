@@ -26,7 +26,7 @@ const PlagiarizedSegmentSchema = z.object({
   sourceURL: z
     .string()
     .optional()
-    .describe('The URL of the identified source, if available.'),
+    .describe("The URL of the identified source, if available. Should be a fully qualified URL (e.g., 'https://www.example.com/page')."),
   sourceSnippet: z
     .string()
     .optional()
@@ -74,7 +74,7 @@ Your task is to:
     c.  Potentially AI-generated text segments: Identify text that exhibits characteristics of AI generation, such as overly generic language, unusual sentence structures, or a style inconsistent with the rest of the document, especially if it seems to be used to disguise plagiarized ideas.
 3.  For each identified segment (direct, paraphrased, or potentially AI-generated to hide plagiarism), provide:
     a.  The exact 'snippetFromDocument' from the submitted text.
-    b.  The 'sourceURL' from which the content was likely taken, if identifiable.
+    b.  The 'sourceURL' from which the content was likely taken, if identifiable. If a 'sourceURL' is provided, it MUST be a fully qualified URL (e.g., 'https://www.example.com/page').
     c.  The 'sourceSnippet' from the identified source that matches the document snippet.'
     d.  A 'similarityScore' (0-100) for that specific segment, indicating how similar it is to the source, considering both lexical and semantic similarity. Provide a detailed explanation of why you believe the segment is plagiarized, including specific examples of paraphrasing techniques used or indicators of AI generation.
 
@@ -87,7 +87,7 @@ Your analysis should include:
 -   Advanced detection of paraphrasing, including sophisticated AI-assisted modifications and AI-generated text patterns used to obscure plagiarism.
 
 Return your findings as a structured list. If no plagiarism is detected, the 'plagiarismPercentage' should be 0 and the 'findings' array should be an empty array.
-Do not invent sources or similarity scores if they cannot be reasonably determined. If a source is suspected but cannot be pinpointed to a URL, describe the nature of the suspected source if possible (e.g., "general web content," "common knowledge phrasing adapted").
+Do not invent sources or similarity scores if they cannot be reasonably determined. If a source is suspected but cannot be pinpointed to a URL, describe the nature of the suspected source if possible (e.g., "general web content," "common knowledge phrasing adapted") and leave the 'sourceURL' field blank or null.
 
 CORE Metadata: {{{coreMetadata}}}
 Document Text: {{{documentText}}}`,
@@ -105,10 +105,10 @@ const generatePlagiarismReportFlow = ai.defineFlow(
     if (!coreMetadataString) {
       const coreApiKey = process.env.CORE_API_KEY || "eX1MLyWY0CfukdUF9V4bAJG6Sv5TcKwi"; // Prefer environment variable
       // Use a more limited portion of the text for the query to avoid overly long URLs or performance issues
-      const queryText = input.documentText.substring(0, 250); 
+      const queryText = input.documentText.substring(0, 250);
       const CORE_API_ENDPOINT = `https://core.ac.uk/api-v2/articles/search/${encodeURIComponent(queryText)}?apiKey=${coreApiKey}&limit=5`;
 
-      console.log("[generatePlagiarismReportFlow] CORE API Endpoint:", CORE_API_ENDPOINT);
+      // console.log("[generatePlagiarismReportFlow] CORE API Endpoint:", CORE_API_ENDPOINT);
 
       try {
         const response = await fetch(CORE_API_ENDPOINT);
@@ -134,7 +134,7 @@ const generatePlagiarismReportFlow = ai.defineFlow(
       // console.log("[generatePlagiarismReportFlow] AI prompt usage:", usage);
       
       if (!output || typeof output.plagiarismPercentage !== 'number' || !Array.isArray(output.findings)) {
-        console.error("[generatePlagiarismReportFlow] Plagiarism report generation failed to produce structured output or valid fields from AI model. Output received:", output);
+        console.error("[generatePlagiarismReportFlow] Plagiarism report generation failed to produce structured output or valid fields from AI model. Output received:", JSON.stringify(output, null, 2));
         // Return a default/empty report to prevent crashes downstream
         return {
           plagiarismPercentage: 0,
@@ -161,4 +161,3 @@ const generatePlagiarismReportFlow = ai.defineFlow(
 // Explicit type-only exports
 export type { _GeneratePlagiarismReportInput as GeneratePlagiarismReportInput };
 export type { _GeneratePlagiarismReportOutput as GeneratePlagiarismReportOutput };
-
