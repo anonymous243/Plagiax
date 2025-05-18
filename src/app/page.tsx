@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -26,10 +25,10 @@ export default function HomePage() {
   const router = useRouter();
   const currentPathname = usePathname(); // Get current pathname
   
-  const [documentTitleInput, setDocumentTitleInput] = React.useState<string>(""); 
-  const [documentText, setDocumentText] = React.useState<string>("");
-  const [isLoading, setIsLoading] = React.useState<boolean>(false);
-  const [currentTask, setCurrentTask] = React.useState<string>(""); 
+  const [documentTitleInput, setDocumentTitleInput] = React.useState(""); 
+  const [documentText, setDocumentText] = React.useState("");
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [currentTask, setCurrentTask] = React.useState(""); 
   const [error, setError] = React.useState<string | null>(null);
   const [fileName, setFileName] = React.useState<string | null>(null);
   const { toast } = useToast();
@@ -96,17 +95,18 @@ export default function HomePage() {
         try {
           const extractionResult = await extractTextFromDocument({ documentDataUri: dataUri });
           if (extractionResult && extractionResult.extractedText) {
-             setDocumentText(extractionResult.extractedText); 
+            setDocumentText(extractionResult.extractedText);
             toast({
               title: "File Ready",
               description: `${file.name} is ready to be checked. Text has been extracted.`,
               variant: "default",
             });
           } else {
-             let specificError = "Could not extract text or document is empty.";
-             if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-                 specificError += " DOCX file processing can sometimes be challenging. Consider trying a PDF version or pasting the text directly.";
-             }
+            let specificError = "Could not extract text or document is empty.";
+            setError(specificError);
+            if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+              specificError += " DOCX file processing can sometimes be challenging. Consider trying a PDF version or pasting the text directly.";
+            }
             setError(specificError);
             if (fileInputRef.current) fileInputRef.current.value = "";
             setFileName(null);
@@ -114,10 +114,12 @@ export default function HomePage() {
         } catch (extractionError: any) {
           console.error("Text extraction error:", extractionError);
           let errorMsg = `Failed to extract text: ${extractionError.message || "Unknown error."}`;
-          if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" && (extractionError.message || "").toLowerCase().includes("server component")) {
-            errorMsg = "Failed to extract text from DOCX. This can sometimes occur with complex DOCX files. Please try converting to PDF or pasting the text directly.";
-          } else if ((extractionError.message || "").toLowerCase().includes("server component") || (extractionError.message || "").toLowerCase().includes("flow execution")) {
-            errorMsg = "Failed to extract text due to a server-side issue or flow error. Please try again or contact support if the problem persists."
+          if ((extractionError.message || "").toLowerCase().includes("server component") || (extractionError.message || "").toLowerCase().includes("flow execution")) {
+            if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+              errorMsg = "Failed to extract text from DOCX. This can sometimes occur with complex DOCX files. Please try converting to PDF or pasting the text directly.";
+            } else {
+              errorMsg = "Failed to extract text due to a server-side issue or flow error. Please try again or contact support if the problem persists.";
+            }
           }
           setError(errorMsg);
           if (fileInputRef.current) fileInputRef.current.value = "";
@@ -419,4 +421,3 @@ export default function HomePage() {
     </div>
   );
 }
-

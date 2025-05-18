@@ -63,11 +63,11 @@ There is NO LIMIT on the length of the text to be extracted from the main body. 
 
 Handle both DOCX and PDF files robustly. For DOCX files, ensure all main textual content is extracted. For PDF files, accurately parse text, respecting reading order where possible.
 
-Execute this extraction with maximum speed and efficiency. The extracted text will be used for further analysis, so a clean, complete, and direct extraction of the main body content is crucial.
+IMPORTANT: If the document is unprocessable due to its format, corruption, or if no main body text can be definitively identified and extracted (while strictly excluding headers/footers as instructed), you MUST still return the specified JSON output with an empty string for the 'extractedText' field. Do not return error messages or commentary within the 'extractedText' field itself; the JSON structure with an empty 'extractedText' is the required output for unprocessable or empty-body documents.
 
 Document: {{media url=documentDataUri}}
 
-Return ONLY the extracted text from the document's main body. If the document's main body is empty or contains no readable text, return an empty string for the 'extractedText' field. Do not add any commentary, preamble, or explanation other than the extracted main body text itself. The output must be solely the content of the 'extractedText' field in the JSON format specified. Example: {"extractedText": "This is the extracted content..."}
+Return ONLY the extracted text from the document's main body. If the document's main body is empty or contains no readable text (after successfully processing the file), return an empty string for the 'extractedText' field. Do not add any commentary, preamble, or explanation other than the extracted main body text itself. The output must be solely the content of the 'extractedText' field in the JSON format specified. Example: {"extractedText": "This is the extracted content..."}
 `,
 });
 
@@ -81,13 +81,14 @@ const extractTextFromDocumentFlow = ai.defineFlow(
     // console.log(`[extractTextFromDocumentFlow] Starting prompt for documentDataUri starting with: ${input.documentDataUri.substring(0,100)}`);
     const {output, usage} = await prompt(input);
     // console.log(`[extractTextFromDocumentFlow] Prompt finished. Usage:`, usage);
+    // console.log('[extractTextFromDocumentFlow] Raw output from model:', JSON.stringify(output)); // For debugging
     
     if (!output) {
       // console.error("[extractTextFromDocumentFlow] Model did not return output.");
       throw new Error("Failed to extract text from the document. The model did not return the expected output structure.");
     }
     if (typeof output.extractedText !== 'string') {
-      // console.error("[extractTextFromDocumentFlow] Model output.extractedText is not a string:", output.extractedText);
+      // console.error("[extractTextFromDocumentFlow] Model output.extractedText is not a string. Type:", typeof output.extractedText, "Value:", output.extractedText);
        throw new Error("Failed to extract text. The model returned an invalid format for extractedText.");
     }
     // console.log(`[extractTextFromDocumentFlow] Successfully extracted text. Length: ${output.extractedText.length}`);
