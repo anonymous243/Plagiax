@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 // Removed Script from 'next/script' as it's no longer needed after removing Visme embed
 import { generatePlagiarismReport } from "@/ai/flows/generate-plagiarism-report";
 import { extractTextFromDocument } from "@/ai/flows/extract-text-from-document";
@@ -24,6 +24,7 @@ const MAX_HISTORY_ITEMS = 50;
 export default function HomePage() {
   const { isAuthenticated, currentUser, isLoading: authIsLoading } = useAuth();
   const router = useRouter();
+  const currentPathname = usePathname(); // Get current pathname
   
   const [documentTitleInput, setDocumentTitleInput] = React.useState<string>(""); 
   const [documentText, setDocumentText] = React.useState<string>("");
@@ -281,7 +282,7 @@ export default function HomePage() {
     fileInputRef.current?.click();
   };
 
-  if (authIsLoading && !isAuthenticated && !['/login', '/signup', '/about', '/terms'].includes(router.pathname)) { 
+  if (authIsLoading && !isAuthenticated && !['/login', '/signup', '/about', '/terms'].includes(currentPathname || '')) { 
     return (
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
         <Spinner className="h-10 w-10 text-primary" />
@@ -418,3 +419,4 @@ export default function HomePage() {
     </div>
   );
 }
+
