@@ -3,7 +3,7 @@
 
 import type { DocumentTypeDistribution, AnalyticsData } from "@/app/analytics/page"; // Assuming types are exported from page or a types file
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ChartConfig, ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
+import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Pie, PieChart, Cell, ResponsiveContainer } from 'recharts';
 import { FilePieChart } from 'lucide-react';
 
