@@ -7,13 +7,7 @@ import { Header } from '@/components/layout/header';
 import { Toaster } from '@/components/ui/toaster';
 import { ReportProvider } from '@/context/ReportContext';
 import { AuthProvider } from '@/context/AuthContext';
-// import { CookieConsentPopup } from '@/components/cookie-consent-popup'; // To be dynamically imported
-import dynamic from 'next/dynamic';
-
-const DynamicCookieConsentPopup = dynamic(() => 
-  import('@/components/cookie-consent-popup').then(mod => mod.CookieConsentPopup), 
-  { ssr: false }
-);
+import ClientCookieConsentWrapper from '@/components/client-cookie-consent-wrapper';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -44,7 +38,7 @@ export default function RootLayout({
                 <main className="flex-1">{children}</main>
               </div>
               <Toaster />
-              <DynamicCookieConsentPopup />
+              <ClientCookieConsentWrapper />
             </ReportProvider>
           </AuthProvider>
         </ThemeProvider>
@@ -52,4 +46,3 @@ export default function RootLayout({
     </html>
   );
 }
-
