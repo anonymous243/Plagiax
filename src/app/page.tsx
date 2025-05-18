@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -58,10 +59,10 @@ export default function HomePage() {
 
     const allowedTypes = [
       "application/pdf", 
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" // DOCX
+      // "application/vnd.openxmlformats-officedocument.wordprocessingml.document" // DOCX - REMOVED due to AI model limitations
     ];
     if (!allowedTypes.includes(file.type)) {
-      setError("Invalid file type. Please upload a DOCX or PDF file.");
+      setError("Invalid file type. Please upload a PDF file. For DOCX files, please paste the text directly or convert to PDF.");
       if (fileInputRef.current) fileInputRef.current.value = "";
       setFileName(null);
       return;
@@ -104,22 +105,16 @@ export default function HomePage() {
           } else {
             let specificError = "Could not extract text or document is empty.";
             setError(specificError);
-            if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-              specificError += " DOCX file processing can sometimes be challenging. Consider trying a PDF version or pasting the text directly.";
-            }
-            setError(specificError);
             if (fileInputRef.current) fileInputRef.current.value = "";
             setFileName(null);
           }
         } catch (extractionError: any) {
           console.error("Text extraction error:", extractionError);
           let errorMsg = `Failed to extract text: ${extractionError.message || "Unknown error."}`;
-          if ((extractionError.message || "").toLowerCase().includes("server component") || (extractionError.message || "").toLowerCase().includes("flow execution")) {
-            if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-              errorMsg = "Failed to extract text from DOCX. This can sometimes occur with complex DOCX files. Please try converting to PDF or pasting the text directly.";
-            } else {
+           if ((extractionError.message || "").toLowerCase().includes("server component") || (extractionError.message || "").toLowerCase().includes("flow execution")) {
               errorMsg = "Failed to extract text due to a server-side issue or flow error. Please try again or contact support if the problem persists.";
-            }
+          } else if ((extractionError.message || "").toLowerCase().includes("unsupported") && (extractionError.message || "").toLowerCase().includes("mimetype")) {
+              errorMsg = `The AI model does not support direct text extraction for this file type (${file.type}). Please try pasting the text or using a PDF.`;
           }
           setError(errorMsg);
           if (fileInputRef.current) fileInputRef.current.value = "";
@@ -160,6 +155,13 @@ export default function HomePage() {
     if (fileName && !documentText.trim()) { 
         const file = fileInputRef.current?.files?.[0];
         if (file) {
+            // Check file type again before attempting re-extraction
+            if (file.type !== "application/pdf") {
+                setError("Cannot re-extract from non-PDF file. Please paste text or upload a valid PDF.");
+                setIsLoading(false);
+                setCurrentTask("");
+                return;
+            }
             setIsLoading(true);
             setCurrentTask("Re-preparing file...");
             currentFileNameForHistory = file.name; 
@@ -177,9 +179,6 @@ export default function HomePage() {
                 const extractionResult = await extractTextFromDocument({ documentDataUri: dataUri });
                 if (!extractionResult || !extractionResult.extractedText) {
                     let specificError = "Could not extract text from the selected file for checking.";
-                    if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-                         specificError += " DOCX file processing can be difficult. Try converting to PDF or pasting text.";
-                    }
                     setError(specificError);
                     setIsLoading(false);
                     setCurrentTask("");
@@ -308,7 +307,7 @@ export default function HomePage() {
         {/* Right Column - Form */}
         <div className="space-y-6 bg-card p-6 sm:p-8 rounded-xl shadow-xl border border-border transition-all duration-300 ease-out hover:shadow-2xl hover:-translate-y-1">
           <p className="text-base text-muted-foreground">
-            Please provide your text or upload a document to check for plagiarism.
+            Please provide your text or upload a PDF document to check for plagiarism.
           </p>
 
           {error && (
@@ -371,13 +370,13 @@ export default function HomePage() {
               Drag and drop or{' '}
               <span className="font-semibold text-primary">browse</span> your files
             </p>
-            <p className="text-xs text-muted-foreground mt-1">DOCX, PDF up to {MAX_FILE_SIZE_MB}MB</p>
+            <p className="text-xs text-muted-foreground mt-1">PDF up to {MAX_FILE_SIZE_MB}MB. For DOCX, please paste text.</p>
             <input
               id="file-upload"
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
-              accept=".docx,.pdf"
+              accept=".pdf"
               className="hidden"
               disabled={isLoading}
             />
@@ -421,3 +420,4 @@ export default function HomePage() {
     </div>
   );
 }
+
