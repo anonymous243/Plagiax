@@ -57,21 +57,20 @@ async function testPlagiarismDetection() {
 
 
 async function testTextExtraction() {
-  // This requires a valid base64 encoded DOCX or PDF data URI.
-  // For a real test, you'd read a file and convert it.
-  // Example (Conceptual - replace with actual data URI for testing):
-  // const samplePdfDataUri = "data:application/pdf;base64,JVBERi0xLjQKJeLjz9MKMyAwIG9iago8PC9..."; 
-  const sampleDocxDataUri = "data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,UEsDBBQABgAIAAAAIQC..."; // A very short, placeholder base64 for a tiny docx
+  // This requires a valid base64 encoded PDF data URI for a meaningful test.
+  // For a real test, you'd read a PDF file and convert it.
+  // Example (Conceptual - replace with actual PDF data URI for testing):
+  const samplePdfDataUri = "data:application/pdf;base64,JVBERi0xLjQKJeLjz9MKMyAwIG9iago8PC9..."; // A very short, placeholder base64 for a tiny PDF
 
-  if (!sampleDocxDataUri.startsWith("data:application")) {
-      console.warn("Skipping text extraction test: No valid sample data URI provided in src/ai/dev.ts");
+  if (!samplePdfDataUri.startsWith("data:application/pdf")) {
+      console.warn("Skipping text extraction test: No valid sample PDF data URI provided in src/ai/dev.ts for testing.");
       return;
   }
 
-  const input = { documentDataUri: sampleDocxDataUri };
+  const input = { documentDataUri: samplePdfDataUri };
   try {
     console.log("======================================================================");
-    console.log("🧪 Starting Text Extraction Test...");
+    console.log("🧪 Starting Text Extraction Test (PDF)...");
     console.log("======================================================================");
     console.log("Input Document Data URI (snippet):", input.documentDataUri.substring(0, 100) + "...");
     
@@ -99,9 +98,8 @@ async function testTextExtraction() {
 // Ensure GENKIT_ENV is set, or adjust the condition as needed.
 if (process.env.GENKIT_ENV === 'dev' || process.env.NODE_ENV === 'development') {
   console.log("Running dev tests (plagiarism and/or text extraction) as per src/ai/dev.ts ...");
-  // You can choose to run one or both tests:
   testPlagiarismDetection();
-  // testTextExtraction(); // Uncomment to run text extraction test. Requires a valid data URI.
+  testTextExtraction(); 
 } else {
   console.log("Skipping dev tests (GENKIT_ENV not 'dev' or NODE_ENV not 'development'). Set GENKIT_ENV=dev or NODE_ENV=development to run.");
 }
