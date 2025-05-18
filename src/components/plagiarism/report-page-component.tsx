@@ -5,7 +5,7 @@ import type { FullReportData } from "@/context/ReportContext";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileSearch, Mail, FileText, CalendarDays, Percent, User, Fingerprint, FileType, Library, Globe, University, LinkIcon, ExternalLink, QrCode, Download } from "lucide-react";
+import { FileSearch, Mail, FileText, CalendarDays, Percent, User, Fingerprint, FileType, Library, Globe, University, LinkIcon, ExternalLink, QrCode, Download, Printer } from "lucide-react";
 import { Languages } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import * as React from "react";
@@ -116,7 +116,7 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
 
   const handleShareEmail = () => {
     const subject = `Plagiax Plagiarism Report: ${documentTitle}`;
-    const body = generateReportTextContent(); // Use the same content generation
+    const body = generateReportTextContent(); 
     const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     
     const newWindow = window.open(mailtoLink, '_blank');
@@ -145,27 +145,39 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
     }
   };
 
-  const handleDownloadReport = () => {
-    const reportText = generateReportTextContent();
-    const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Plagiax_Report_${submissionId.substring(0,8)}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const handlePrintOrSavePdf = () => {
     toast({
-      title: "Report Downloading",
-      description: "Your report summary is being downloaded as a text file.",
+      title: "Preparing Report",
+      description: "Your browser's print dialog will open. You can save as PDF from there.",
       variant: "default",
     });
+    setTimeout(() => {
+      window.print();
+    }, 100); // Short delay to ensure toast appears before print dialog freezes UI
   };
 
   return (
     <div className="container mx-auto py-8 px-4 flex flex-col items-center min-h-[calc(100vh-4rem)]">
-      <Card className="w-full max-w-4xl shadow-2xl rounded-xl overflow-hidden">
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .printable-area, .printable-area * {
+            visibility: visible;
+          }
+          .printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
+      <Card className="w-full max-w-4xl shadow-2xl rounded-xl overflow-hidden printable-area">
         <CardHeader className="bg-primary/10 p-6">
           <div className="flex items-center gap-3 mb-1">
             <FileText className="h-8 w-8 text-primary" />
@@ -317,12 +329,12 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
           </section>
 
         </CardContent>
-        <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-3 p-6 pt-6 border-t border-border mt-4 bg-muted/30">
+        <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-3 p-6 pt-6 border-t border-border mt-4 bg-muted/30 no-print">
           <Button variant="outline" onClick={onBack} className="w-full sm:w-auto text-base py-3 rounded-lg">
             <FileSearch className="mr-2 h-5 w-5" /> Check Another
           </Button>
-          <Button onClick={handleDownloadReport} variant="default" className="w-full sm:w-auto text-base py-3 rounded-lg">
-            <Download className="mr-2 h-5 w-5" /> Download Report
+          <Button onClick={handlePrintOrSavePdf} variant="default" className="w-full sm:w-auto text-base py-3 rounded-lg">
+            <Printer className="mr-2 h-5 w-5" /> Print / Save PDF
           </Button>
           <Button onClick={handleShareEmail} variant="default" className="w-full sm:w-auto text-base py-3 rounded-lg">
             <Mail className="mr-2 h-5 w-5" /> Share via Email
@@ -332,5 +344,3 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
     </div>
   );
 }
-
-    
