@@ -19,6 +19,8 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const COOKIE_CONSENT_NAME = 'plagiax_cookie_consent';
+
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -69,6 +71,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('plagiax_currentUserEmail', email);
     setIsAuthenticated(true);
     setCurrentUser({ fullName, email });
+
+    // Automatically set cookie consent on login if not already set
+    if (typeof window !== 'undefined') {
+      const consentCookie = document.cookie
+        .split('; ')
+        .find(row => row.startsWith(`${COOKIE_CONSENT_NAME}=`));
+      if (!consentCookie) {
+        const date = new Date();
+        date.setTime(date.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
+        const expires = "expires=" + date.toUTCString();
+        document.cookie = `${COOKIE_CONSENT_NAME}=true; ${expires}; path=/; SameSite=Lax`;
+      }
+    }
+    
     router.push('/'); 
   };
 
@@ -77,6 +93,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('plagiax_currentUserEmail');
     setIsAuthenticated(false);
     setCurrentUser(null);
+    // Note: We don't clear the cookie consent cookie on logout.
+    // If the user previously accepted, that consent remains valid
+    // even if they log out and browse as a guest.
     router.push('/login'); 
   };
 

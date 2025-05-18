@@ -4,32 +4,49 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Cookie } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext'; // Import useAuth
 
 const COOKIE_NAME = 'plagiax_cookie_consent';
 
 export function CookieConsentPopup() {
   const [isVisible, setIsVisible] = useState(false);
+  const { isAuthenticated, isLoading: authIsLoading } = useAuth(); // Get auth state
 
   useEffect(() => {
-    // Ensure this only runs on the client
-    if (typeof window !== 'undefined') {
-      const consentCookie = document.cookie
-        .split('; ')
-        .find(row => row.startsWith(`${COOKIE_NAME}=`));
-      
-      if (!consentCookie) {
-        setIsVisible(true);
+    // Ensure this only runs on the client and after auth state is determined
+    if (typeof window !== 'undefined' && !authIsLoading) {
+      if (isAuthenticated) {
+        setIsVisible(false);
+        // If authenticated, ensure the cookie is set (self-healing)
+        const consentCookie = document.cookie
+          .split('; ')
+          .find(row => row.startsWith(`${COOKIE_NAME}=`));
+        if (!consentCookie) {
+          const date = new Date();
+          date.setTime(date.getTime() + (365 * 24 * 60 * 60 * 1000));
+          const expires = "expires=" + date.toUTCString();
+          document.cookie = `${COOKIE_NAME}=true; ${expires}; path=/; SameSite=Lax`;
+        }
+      } else {
+        // If not authenticated, check if cookie already exists
+        const consentCookie = document.cookie
+          .split('; ')
+          .find(row => row.startsWith(`${COOKIE_NAME}=`));
+        
+        if (!consentCookie) {
+          setIsVisible(true); // Show popup only if cookie is not set
+        } else {
+          setIsVisible(false);
+        }
       }
     }
-  }, []);
+  }, [isAuthenticated, authIsLoading]); // Depend on isAuthenticated and authIsLoading
 
   const handleAccept = () => {
     if (typeof window !== 'undefined') {
       const date = new Date();
-      // Set cookie to expire in 1 year
       date.setTime(date.getTime() + (365 * 24 * 60 * 60 * 1000));
       const expires = "expires=" + date.toUTCString();
-      // Set cookie with SameSite=Lax for better security practice
       document.cookie = `${COOKIE_NAME}=true; ${expires}; path=/; SameSite=Lax`;
       setIsVisible(false);
     }
