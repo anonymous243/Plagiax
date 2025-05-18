@@ -5,7 +5,7 @@ import type { FullReportData } from "@/context/ReportContext";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileSearch, Mail, FileText, CalendarDays, Percent, User, Fingerprint, FileType, Library, Globe, University, LinkIcon, ExternalLink, QrCode } from "lucide-react";
+import { FileSearch, Mail, FileText, CalendarDays, Percent, User, Fingerprint, FileType, Library, Globe, University, LinkIcon, ExternalLink, QrCode, Download } from "lucide-react";
 import { Languages } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import * as React from "react";
@@ -27,18 +27,12 @@ const getGrade = (percentage: number): string => {
 
 const getDomain = (url?: string): string => {
   if (!url || url.trim() === "" || !url.includes("://")) {
-    // If URL is empty, just whitespace, or doesn't include a scheme (like http:// or https://)
-    // then it's not a parsable absolute URL for the new URL() constructor.
-    // It might also be a placeholder like "general web content" from the AI.
     return "N/A"; 
   }
   try {
     const hostname = new URL(url).hostname;
-    // Remove www. if present for cleaner display
     return hostname.startsWith('www.') ? hostname.substring(4) : hostname;
   } catch (e) {
-    // This catch is for URLs that include "://" but are still malformed,
-    // or if the URL constructor has other issues with it.
     return "Invalid URL";
   }
 };
@@ -71,44 +65,58 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
 
   const grade = getGrade(plagiarismPercentage);
 
-  const handleShareEmail = () => {
-    const subject = `Plagiax Plagiarism Report: ${documentTitle}`;
-    let body = `Plagiax Plagiarism Report\n\n`;
-    body += `--- Submission Information ---\n`;
-    body += `Author Name: ${currentUser?.fullName || 'N/A'}\n`;
-    body += `Title: ${documentTitle}\n`;
-    body += `Paper/Submission ID: ${submissionId}\n`;
-    body += `Submitted by: ${currentUser?.email || 'N/A'}\n`;
-    body += `Submission Date: ${format(new Date(submissionTimestamp), 'yyyy-MM-dd HH:mm:ss')}\n`;
-    body += `Total Words: ${totalWords}\n\n`;
+  const generateReportTextContent = (): string => {
+    let content = `Plagiax Plagiarism Report\n`;
+    content += `==================================================\n\n`;
     
-    body += `--- Result Information ---\n`;
-    body += `Similarity: ${plagiarismPercentage.toFixed(1)}%\n`;
-    body += `Matched Sources: ${findings.length}\n`;
-    body += `Grade: ${grade}\n\n`;
+    content += `--- Submission Information ---\n`;
+    content += `Author Name: ${currentUser?.fullName || 'N/A'}\n`;
+    content += `Title: ${documentTitle}\n`;
+    content += `Paper/Submission ID: ${submissionId}\n`;
+    content += `Submitted by: ${currentUser?.email || 'N/A'}\n`;
+    content += `Submission Date: ${format(new Date(submissionTimestamp), 'yyyy-MM-dd HH:mm:ss')}\n`;
+    content += `Total Words: ${totalWords}\n\n`;
+    
+    content += `--- Result Information ---\n`;
+    content += `Similarity: ${plagiarismPercentage.toFixed(1)}%\n`;
+    content += `Matched Sources: ${findings.length}\n`;
+    content += `Grade: ${grade}\n\n`;
 
     if (findings && findings.length > 0) {
-      body += `--- Matched Sources ---\n`;
+      content += `--- Matched Sources ---\n`;
       findings.forEach((finding, index) => {
-        body += `\nMatch #${index + 1}:\n`;
-        body += `  Snippet: "${(finding.snippetFromDocument || 'N/A').substring(0, 100)}..."\n`; // Added check for undefined snippet
+        content += `\nMatch #${index + 1}:\n`;
+        content += `  Snippet from Document: "${(finding.snippetFromDocument || 'N/A').substring(0, 150)}..."\n`;
         const domain = getDomain(finding.sourceURL);
         if (domain !== "N/A" && domain !== "Invalid URL" && finding.sourceURL) {
-           body += `  Source: ${finding.sourceURL}\n`;
-           body += `  Domain: ${domain}\n`;
-        } else if (finding.sourceURL) { // If AI provided something but it wasn't a good URL
-           body += `  Suspected Source Info: ${finding.sourceURL}\n`;
+           content += `  Source URL: ${finding.sourceURL}\n`;
+           content += `  Domain: ${domain}\n`;
+        } else if (finding.sourceURL) {
+           content += `  Suspected Source Info: ${finding.sourceURL}\n`;
         } else {
-           body += `  Source: Not specified\n`;
+           content += `  Source: Not specified\n`;
         }
         if (finding.similarityScore !== undefined) {
-          body += `  Similarity: ${finding.similarityScore.toFixed(0)}%\n`;
+          content += `  Similarity Score: ${finding.similarityScore.toFixed(0)}%\n`;
         }
-        body += `  Source Type: Internet Data\n`; // Assuming for now
+        content += `  Source Type: Internet Data\n`; // Assuming for now
       });
+    } else if (plagiarismPercentage > 0) {
+        content += `--- Matched Sources ---\n`;
+        content += `While an overall similarity percentage was detected, specific matching sources could not be detailed by the AI for this report.\n\n`;
+    } else {
+        content += `--- Matched Sources ---\n`;
+        content += `No plagiarism detected based on the provided settings.\n\n`;
     }
     
-    body += "\nGenerated by Plagiax.";
+    content += `\n==================================================\n`;
+    content += `Generated by Plagiax Plagiarism Detection Software\n`;
+    return content;
+  };
+
+  const handleShareEmail = () => {
+    const subject = `Plagiax Plagiarism Report: ${documentTitle}`;
+    const body = generateReportTextContent(); // Use the same content generation
     const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     
     const newWindow = window.open(mailtoLink, '_blank');
@@ -135,6 +143,24 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
         variant: "default",
       });
     }
+  };
+
+  const handleDownloadReport = () => {
+    const reportText = generateReportTextContent();
+    const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Plagiax_Report_${submissionId.substring(0,8)}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast({
+      title: "Report Downloading",
+      description: "Your report summary is being downloaded as a text file.",
+      variant: "default",
+    });
   };
 
   return (
@@ -274,7 +300,7 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
              </div>
            )}
            {plagiarismPercentage === 0 && (
-             <div className="pt-4 text-center text-green-600 dark:text-green-400">
+             <div className="pt-4 text-green-600 dark:text-green-400">
                 <Separator className="my-4" />
                 <p className="font-semibold">No plagiarism detected based on the provided settings.</p>
              </div>
@@ -285,7 +311,7 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
             <Separator className="my-6" />
             <h3 className="text-md font-semibold text-muted-foreground mb-2">View/Download/Share PDF File</h3>
             <div className="inline-flex flex-col items-center p-4 border border-dashed border-border rounded-lg bg-muted/30">
-              <QrCode className="h-24 w-24 text-muted-foreground mb-2" data-ai-hint="qr code placeholder"/>
+              <QrCode className="h-24 w-24 text-muted-foreground" data-ai-hint="qr code placeholder"/>
               <p className="text-xs text-muted-foreground">A Unique QR Code (Feature Coming Soon)</p>
             </div>
           </section>
@@ -295,6 +321,9 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
           <Button variant="outline" onClick={onBack} className="w-full sm:w-auto text-base py-3 rounded-lg">
             <FileSearch className="mr-2 h-5 w-5" /> Check Another
           </Button>
+          <Button onClick={handleDownloadReport} variant="default" className="w-full sm:w-auto text-base py-3 rounded-lg">
+            <Download className="mr-2 h-5 w-5" /> Download Report
+          </Button>
           <Button onClick={handleShareEmail} variant="default" className="w-full sm:w-auto text-base py-3 rounded-lg">
             <Mail className="mr-2 h-5 w-5" /> Share via Email
           </Button>
@@ -303,3 +332,5 @@ export default function ReportPageComponent({ reportDetails, onBack }: ReportPag
     </div>
   );
 }
+
+    
