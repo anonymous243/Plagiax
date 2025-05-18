@@ -3,7 +3,6 @@
 
 import * as React from "react";
 import { useRouter, usePathname } from "next/navigation";
-// Removed Script from 'next/script' as it's no longer needed after removing Visme embed
 import { generatePlagiarismReport } from "@/ai/flows/generate-plagiarism-report";
 import { extractTextFromDocument } from "@/ai/flows/extract-text-from-document";
 import { Button } from "@/components/ui/button";
@@ -24,7 +23,7 @@ const MAX_HISTORY_ITEMS = 50;
 export default function HomePage() {
   const { isAuthenticated, currentUser, isLoading: authIsLoading } = useAuth();
   const router = useRouter();
-  const currentPathname = usePathname(); // Get current pathname
+  const currentPathname = usePathname();
   
   const [documentTitleInput, setDocumentTitleInput] = React.useState(""); 
   const [documentText, setDocumentText] = React.useState("");
@@ -37,10 +36,10 @@ export default function HomePage() {
   const { setReportDetails } = useReport();
 
   React.useEffect(() => {
-    if (!authIsLoading && !isAuthenticated) {
+    if (!authIsLoading && !isAuthenticated && !['/login', '/signup', '/about', '/terms'].includes(currentPathname || '')) {
       router.replace('/login');
     }
-  }, [authIsLoading, isAuthenticated, router]);
+  }, [authIsLoading, isAuthenticated, router, currentPathname]);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -57,89 +56,111 @@ export default function HomePage() {
       return;
     }
 
-    const allowedTypes = [
-      "application/pdf", 
-      // "application/vnd.openxmlformats-officedocument.wordprocessingml.document" // DOCX - REMOVED due to AI model limitations
-    ];
-    if (!allowedTypes.includes(file.type)) {
-      setError("Invalid file type. Please upload a PDF file. For DOCX files, please paste the text directly or convert to PDF.");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      setFileName(null);
-      return;
+    const pdfMimeType = "application/pdf";
+    const docxMimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+    setError(null); // Clear previous errors
+
+    if (file.type === docxMimeType) {
+      setIsLoading(false);
+      setCurrentTask("");
+      setFileName(file.name);
+      if (!documentTitleInput && file.name) {
+        setDocumentTitleInput(file.name.split('.').slice(0, -1).join('.'));
+      }
+      setDocumentText(""); 
+      setError("DOCX selected: " + file.name + ". Please copy its content and paste it into the text area. Direct DOCX processing by AI is not supported.");
+      toast({
+        title: "DOCX File Selected",
+        description: "Please copy its content and paste it into the text area. Direct DOCX extraction is not supported.",
+        variant: "default",
+      });
+      // We keep the file selected in the input for filename reference, 
+      // but handleSubmit will know not to try and extract it.
+      return; 
     }
+    
+    if (file.type === pdfMimeType) {
+      setIsLoading(true);
+      setCurrentTask("Reading file...");
+      setFileName(file.name);
+      if (!documentTitleInput && file.name) {
+          setDocumentTitleInput(file.name.split('.').slice(0, -1).join('.'));
+      }
+      setDocumentText("");
 
-    setError(null);
-    setIsLoading(true);
-    setCurrentTask("Reading file...");
-    setFileName(file.name);
-    if (!documentTitleInput && file.name) { 
-        setDocumentTitleInput(file.name.split('.').slice(0, -1).join('.')); 
-    }
-    setDocumentText(""); 
-
-    try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const dataUri = e.target?.result as string;
-        if (!dataUri) {
-          setError("Failed to read file data.");
-          setIsLoading(false);
-          setCurrentTask("");
-          if (fileInputRef.current) fileInputRef.current.value = "";
-          setFileName(null);
-          return;
-        }
-
-        setCurrentTask("Extracting text...");
-        toast({ title: "Processing Document", description: "Extracting text. This may take a moment." });
-        
-        try {
-          const extractionResult = await extractTextFromDocument({ documentDataUri: dataUri });
-          if (extractionResult && extractionResult.extractedText) {
-            setDocumentText(extractionResult.extractedText);
-            toast({
-              title: "File Ready",
-              description: `${file.name} is ready to be checked. Text has been extracted.`,
-              variant: "default",
-            });
-          } else {
-            let specificError = "Could not extract text or document is empty.";
-            setError(specificError);
+      try {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const dataUri = e.target?.result as string;
+          if (!dataUri) {
+            setError("Failed to read file data.");
+            setIsLoading(false);
+            setCurrentTask("");
             if (fileInputRef.current) fileInputRef.current.value = "";
             setFileName(null);
+            return;
           }
-        } catch (extractionError: any) {
-          console.error("Text extraction error:", extractionError);
-          let errorMsg = `Failed to extract text: ${extractionError.message || "Unknown error."}`;
-           if ((extractionError.message || "").toLowerCase().includes("server component") || (extractionError.message || "").toLowerCase().includes("flow execution")) {
-              errorMsg = "Failed to extract text due to a server-side issue or flow error. Please try again or contact support if the problem persists.";
-          } else if ((extractionError.message || "").toLowerCase().includes("unsupported") && (extractionError.message || "").toLowerCase().includes("mimetype")) {
-              errorMsg = `The AI model does not support direct text extraction for this file type (${file.type}). Please try pasting the text or using a PDF.`;
+
+          setCurrentTask("Extracting text...");
+          toast({ title: "Processing Document", description: "Extracting text. This may take a moment." });
+          
+          try {
+            const extractionResult = await extractTextFromDocument({ documentDataUri: dataUri });
+            if (extractionResult && typeof extractionResult.extractedText === 'string') {
+              setDocumentText(extractionResult.extractedText);
+              toast({
+                title: "File Ready",
+                description: `${file.name} is ready. Text has been extracted.`,
+                variant: "default",
+              });
+            } else {
+              let specificError = "Could not extract text or document is empty.";
+              setError(specificError);
+              if (fileInputRef.current) fileInputRef.current.value = "";
+              setFileName(null);
+            }
+          } catch (extractionError: any) {
+            console.error("Text extraction error:", extractionError);
+            let errorMsg = `Failed to extract text: ${extractionError.message || "Unknown error."}`;
+             if ((extractionError.message || "").toLowerCase().includes("server component") || (extractionError.message || "").toLowerCase().includes("flow execution")) {
+                errorMsg = "Failed to extract text due to a server-side issue. Please try again or contact support if the problem persists.";
+            } else if ((extractionError.message || "").toLowerCase().includes("unsupported") && (extractionError.message || "").toLowerCase().includes("mimetype")) {
+                errorMsg = `The AI model does not support direct text extraction for this file type (${file.type}). Please try pasting the text or using a PDF.`;
+            }
+            setError(errorMsg);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            setFileName(null);
+          } finally {
+            setIsLoading(false);
+            setCurrentTask("");
           }
-          setError(errorMsg);
-          if (fileInputRef.current) fileInputRef.current.value = "";
-          setFileName(null);
-        } finally {
+        };
+        reader.onerror = () => {
+          setError("Failed to read file.");
           setIsLoading(false);
           setCurrentTask("");
-        }
-      };
-      reader.onerror = () => {
-        setError("Failed to read file.");
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          setFileName(null);
+        };
+        reader.readAsDataURL(file);
+      } catch (err: any) {
+        console.error("File processing error:", err);
+        setError(`An error occurred: ${err.message || "Unknown error."}`);
         setIsLoading(false);
         setCurrentTask("");
         if (fileInputRef.current) fileInputRef.current.value = "";
         setFileName(null);
-      };
-      reader.readAsDataURL(file);
-    } catch (err: any) {
-      console.error("File processing error:", err);
-      setError(`An error occurred: ${err.message || "Unknown error."}`);
-      setIsLoading(false);
-      setCurrentTask("");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      setFileName(null);
+      }
+      return; 
     }
+    
+    // If neither PDF nor DOCX
+    setError(`Invalid file type. Please upload a PDF (for auto-extraction) or a DOCX (then paste its content).`);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setFileName(null);
+    setIsLoading(false);
+    setCurrentTask("");
   };
 
   const handleSubmit = async () => {
@@ -155,18 +176,24 @@ export default function HomePage() {
     if (fileName && !documentText.trim()) { 
         const file = fileInputRef.current?.files?.[0];
         if (file) {
-            // Check file type again before attempting re-extraction
-            if (file.type !== "application/pdf") {
-                setError("Cannot re-extract from non-PDF file. Please paste text or upload a valid PDF.");
+            if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") { // DOCX
+                setError("For the selected DOCX file, please paste its content into the text area above before submitting.");
                 setIsLoading(false);
                 setCurrentTask("");
                 return;
             }
+            if (file.type !== "application/pdf") { // Not PDF (and not DOCX already handled)
+                setError("Cannot automatically process this file type for submission. Please use a PDF or paste text.");
+                setIsLoading(false);
+                setCurrentTask("");
+                return;
+            }
+            // If PDF, try to re-extract
             setIsLoading(true);
-            setCurrentTask("Re-preparing file...");
+            setCurrentTask("Re-preparing PDF...");
             currentFileNameForHistory = file.name; 
             if (!docTitleForReport) { 
-                 docTitleForReport = file.name.split('.').slice(0, -1).join('.') || "Uploaded Document";
+                 docTitleForReport = file.name.split('.').slice(0, -1).join('.') || "Uploaded PDF Document";
             }
             try {
                 const dataUri = await new Promise<string>((resolve, reject) => {
@@ -175,10 +202,10 @@ export default function HomePage() {
                     reader.onerror = reject;
                     reader.readAsDataURL(file);
                 });
-                setCurrentTask("Re-extracting text...");
+                setCurrentTask("Re-extracting text from PDF...");
                 const extractionResult = await extractTextFromDocument({ documentDataUri: dataUri });
-                if (!extractionResult || !extractionResult.extractedText) {
-                    let specificError = "Could not extract text from the selected file for checking.";
+                if (!extractionResult || typeof extractionResult.extractedText !== 'string') {
+                    let specificError = "Could not extract text from the PDF file for checking. Please try pasting the text.";
                     setError(specificError);
                     setIsLoading(false);
                     setCurrentTask("");
@@ -187,7 +214,7 @@ export default function HomePage() {
                 textToCheck = extractionResult.extractedText;
                 setDocumentText(textToCheck); 
             } catch (e: any) {
-                 setError(`Error processing file for submission: ${e.message}`);
+                 setError(`Error processing PDF file for submission: ${e.message}`);
                  setIsLoading(false);
                  setCurrentTask("");
                  return;
@@ -307,13 +334,13 @@ export default function HomePage() {
         {/* Right Column - Form */}
         <div className="space-y-6 bg-card p-6 sm:p-8 rounded-xl shadow-xl border border-border transition-all duration-300 ease-out hover:shadow-2xl hover:-translate-y-1">
           <p className="text-base text-muted-foreground">
-            Please provide your text or upload a PDF document to check for plagiarism.
+            Paste text or upload a PDF (for auto-extraction) or DOCX (then paste content) to check.
           </p>
 
           {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
+            <Alert variant={error.startsWith("DOCX selected") ? "default" : "destructive"} className={error.startsWith("DOCX selected") ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30" : ""}>
+              <AlertCircle className={`h-4 w-4 ${error.startsWith("DOCX selected") ? "text-blue-600 dark:text-blue-400" : ""}`} />
+              <AlertTitle>{error.startsWith("DOCX selected") ? "Info" : "Error"}</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
@@ -340,9 +367,10 @@ export default function HomePage() {
             value={documentText}
             onChange={(e) => {
               setDocumentText(e.target.value);
-              if (e.target.value && fileName) { 
-                setFileName(null);
-                if(fileInputRef.current) fileInputRef.current.value = "";
+              if (e.target.value && fileName) {
+                // If user starts typing after selecting a file, we assume they want to use pasted text.
+                // We don't clear fileName immediately here, but handleSubmit might prefer pasted text.
+                 setError(null); // Clear DOCX guidance if user starts typing
               }
             }}
             rows={8}
@@ -370,21 +398,21 @@ export default function HomePage() {
               Drag and drop or{' '}
               <span className="font-semibold text-primary">browse</span> your files
             </p>
-            <p className="text-xs text-muted-foreground mt-1">PDF up to {MAX_FILE_SIZE_MB}MB. For DOCX, please paste text.</p>
+            <p className="text-xs text-muted-foreground mt-1">PDF (auto-extract) or DOCX (paste content). Up to {MAX_FILE_SIZE_MB}MB.</p>
             <input
               id="file-upload"
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
-              accept=".pdf"
+              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               className="hidden"
               disabled={isLoading}
             />
           </div>
-          {fileName && !isLoading && (
+          {fileName && !isLoading && !error?.startsWith("DOCX selected") && ( // Don't show green check if DOCX info is showing
             <p className="text-sm text-green-600 dark:text-green-400 flex items-center">
               <CheckCircle className="h-4 w-4 mr-1.5 shrink-0" /> Selected: {fileName}
-              {documentText ? ` (${documentText.split(/\s+/).filter(Boolean).length} words extracted)` : ''}
+              {documentText && fileInputRef.current?.files?.[0]?.type === 'application/pdf' ? ` (${documentText.split(/\s+/).filter(Boolean).length} words extracted)` : ''}
             </p>
           )}
           {isLoading && (
@@ -413,11 +441,10 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Informational Text - Moved to the bottom */}
       <div className="mt-16 text-sm text-muted-foreground max-w-3xl mx-auto text-left md:text-center">
           Leveraging state-of-the-art artificial intelligence, Plagiax conducts comprehensive textual analysis by cross-referencing submitted documents against an expansive global content database. Our intelligent system provides nuanced originality insights, with intelligent parsing capabilities that extract and analyze core content from diverse file formats including DOCX and PDF. Users should interpret results as a sophisticated guidance tool, recognizing the contextual nature of content similarity.
       </div>
     </div>
   );
 }
-
+    
