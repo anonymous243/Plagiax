@@ -2,8 +2,10 @@
 import { config } from 'dotenv';
 config(); // Load .env file variables
 
+console.log("Attempting to run Genkit dev script (src/ai/dev.ts)...");
+
 import { generatePlagiarismReport } from './flows/generate-plagiarism-report';
-import { extractTextFromDocument } from './flows/extract-text-from-document'; // Assuming you might want to test this too
+import { extractTextFromDocument } from './flows/extract-text-from-document';
 
 async function testPlagiarismDetection() {
   const testDocumentText = `
@@ -96,7 +98,7 @@ async function testTextExtraction() {
 // To run the tests when Genkit starts in dev mode:
 // Ensure GENKIT_ENV is set, or adjust the condition as needed.
 if (process.env.GENKIT_ENV === 'dev' || process.env.NODE_ENV === 'development') {
-  console.log("Running dev tests (plagiarism and/or text extraction)...");
+  console.log("Running dev tests (plagiarism and/or text extraction) as per src/ai/dev.ts ...");
   // You can choose to run one or both tests:
   testPlagiarismDetection();
   // testTextExtraction(); // Uncomment to run text extraction test. Requires a valid data URI.
