@@ -3,7 +3,7 @@
 
 import type { DocumentTypeDistribution, AnalyticsData } from "@/app/analytics/page"; // Assuming types are exported from page or a types file
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ChartConfig, ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
+import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Cell, ResponsiveContainer } from 'recharts';
 import { BarChartBig as AnalyticsIcon } from 'lucide-react';
 
@@ -46,3 +46,4 @@ export default function BarChartWrapper({ data, chartConfig }: BarChartWrapperPr
     </Card>
   );
 }
+
