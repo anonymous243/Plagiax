@@ -59,7 +59,7 @@ export default function HomePage() {
     const pdfMimeType = "application/pdf";
     const docxMimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-    setError(null); // Clear previous errors
+    setError(null); // Clear previous errors before processing new file
 
     if (file.type === docxMimeType) {
       setIsLoading(false);
@@ -68,15 +68,14 @@ export default function HomePage() {
       if (!documentTitleInput && file.name) {
         setDocumentTitleInput(file.name.split('.').slice(0, -1).join('.'));
       }
-      setDocumentText(""); 
-      setError("DOCX selected: " + file.name + ". Please copy its content and paste it into the text area. Direct DOCX processing by AI is not supported.");
+      setDocumentText(""); // Clear text area, expecting user to paste
+      // setError(null); // Already called above, ensures no alert for DOCX selection guidance
       toast({
-        title: "DOCX File Selected",
-        description: "Please copy its content and paste it into the text area. Direct DOCX extraction is not supported.",
+        title: "DOCX File Selected: Action Required",
+        description: `Please copy content from '${file.name}' and paste it into the text area. Direct AI processing of DOCX files is not supported.`,
         variant: "default",
+        duration: 8000, 
       });
-      // We keep the file selected in the input for filename reference, 
-      // but handleSubmit will know not to try and extract it.
       return; 
     }
     
@@ -156,8 +155,8 @@ export default function HomePage() {
     }
     
     // If neither PDF nor DOCX
-    setError(`Invalid file type. Please upload a PDF (for auto-extraction) or a DOCX (then paste its content).`);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    setError(`Invalid file type. Please upload a PDF (for auto-extraction) or DOCX (then paste its content).`);
+    if (fileInputRef.current) fileInputRef.current.value = ""; // Clear the input if invalid type
     setFileName(null);
     setIsLoading(false);
     setCurrentTask("");
@@ -176,49 +175,45 @@ export default function HomePage() {
     if (fileName && !documentText.trim()) { 
         const file = fileInputRef.current?.files?.[0];
         if (file) {
-            if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") { // DOCX
-                setError("For the selected DOCX file, please paste its content into the text area above before submitting.");
-                setIsLoading(false);
-                setCurrentTask("");
-                return;
-            }
-            if (file.type !== "application/pdf") { // Not PDF (and not DOCX already handled)
-                setError("Cannot automatically process this file type for submission. Please use a PDF or paste text.");
-                setIsLoading(false);
-                setCurrentTask("");
-                return;
-            }
-            // If PDF, try to re-extract
-            setIsLoading(true);
-            setCurrentTask("Re-preparing PDF...");
-            currentFileNameForHistory = file.name; 
-            if (!docTitleForReport) { 
-                 docTitleForReport = file.name.split('.').slice(0, -1).join('.') || "Uploaded PDF Document";
-            }
-            try {
-                const dataUri = await new Promise<string>((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => resolve(e.target?.result as string);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
-                });
-                setCurrentTask("Re-extracting text from PDF...");
-                const extractionResult = await extractTextFromDocument({ documentDataUri: dataUri });
-                if (!extractionResult || typeof extractionResult.extractedText !== 'string') {
-                    let specificError = "Could not extract text from the PDF file for checking. Please try pasting the text.";
-                    setError(specificError);
-                    setIsLoading(false);
-                    setCurrentTask("");
-                    return;
-                }
-                textToCheck = extractionResult.extractedText;
-                setDocumentText(textToCheck); 
-            } catch (e: any) {
-                 setError(`Error processing PDF file for submission: ${e.message}`);
+            // Removed specific DOCX check here. It will be caught by the general !textToCheck.trim() later if no text is pasted.
+            if (file.type === "application/pdf") {
+              setIsLoading(true);
+              setCurrentTask("Re-preparing PDF...");
+              currentFileNameForHistory = file.name; 
+              if (!docTitleForReport) { 
+                   docTitleForReport = file.name.split('.').slice(0, -1).join('.') || "Uploaded PDF Document";
+              }
+              try {
+                  const dataUri = await new Promise<string>((resolve, reject) => {
+                      const reader = new FileReader();
+                      reader.onload = (e) => resolve(e.target?.result as string);
+                      reader.onerror = reject;
+                      reader.readAsDataURL(file);
+                  });
+                  setCurrentTask("Re-extracting text from PDF...");
+                  const extractionResult = await extractTextFromDocument({ documentDataUri: dataUri });
+                  if (!extractionResult || typeof extractionResult.extractedText !== 'string' || !extractionResult.extractedText.trim()) {
+                      let specificError = "Could not extract text from the PDF file for checking, or the extracted text is empty. Please try pasting the text.";
+                      setError(specificError);
+                      setIsLoading(false);
+                      setCurrentTask("");
+                      return;
+                  }
+                  textToCheck = extractionResult.extractedText;
+                  setDocumentText(textToCheck); 
+              } catch (e: any) {
+                   setError(`Error processing PDF file for submission: ${e.message}`);
+                   setIsLoading(false);
+                   setCurrentTask("");
+                   return;
+              }
+            } else if (file.type !== "application/vnd.openxmlformats-officedocument.wordprocessingml.document") { // Not PDF and NOT DOCX
+                 setError("Cannot automatically process this file type for submission. Please use a PDF or paste text from your document.");
                  setIsLoading(false);
                  setCurrentTask("");
                  return;
             }
+            // If it was a DOCX and text is empty, textToCheck remains empty.
         } else if (!textToCheck.trim()){ 
             setError("No content to check. Please upload a file or paste text.");
             setIsLoading(false);
@@ -334,7 +329,7 @@ export default function HomePage() {
         {/* Right Column - Form */}
         <div className="space-y-6 bg-card p-6 sm:p-8 rounded-xl shadow-xl border border-border transition-all duration-300 ease-out hover:shadow-2xl hover:-translate-y-1">
           <p className="text-base text-muted-foreground">
-            Paste text or upload a PDF (for auto-extraction) or DOCX (then paste content) to check.
+            Paste text or upload a PDF (for auto-extraction). For DOCX, select file then paste its content.
           </p>
 
           {error && (
@@ -368,9 +363,7 @@ export default function HomePage() {
             onChange={(e) => {
               setDocumentText(e.target.value);
               if (e.target.value && fileName) {
-                // If user starts typing after selecting a file, we assume they want to use pasted text.
-                // We don't clear fileName immediately here, but handleSubmit might prefer pasted text.
-                 setError(null); // Clear DOCX guidance if user starts typing
+                 setError(null); 
               }
             }}
             rows={8}
@@ -409,7 +402,7 @@ export default function HomePage() {
               disabled={isLoading}
             />
           </div>
-          {fileName && !isLoading && !error?.startsWith("DOCX selected") && ( // Don't show green check if DOCX info is showing
+          {fileName && !isLoading && !error?.startsWith("DOCX selected") && ( 
             <p className="text-sm text-green-600 dark:text-green-400 flex items-center">
               <CheckCircle className="h-4 w-4 mr-1.5 shrink-0" /> Selected: {fileName}
               {documentText && fileInputRef.current?.files?.[0]?.type === 'application/pdf' ? ` (${documentText.split(/\s+/).filter(Boolean).length} words extracted)` : ''}
@@ -447,4 +440,6 @@ export default function HomePage() {
     </div>
   );
 }
+    
+
     
